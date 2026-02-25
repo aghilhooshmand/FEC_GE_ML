@@ -1,0 +1,17 @@
+# Custom Operator Example Grammar
+# This grammar demonstrates how to use custom operators defined through the UI
+# 
+# Prerequisites:
+# 1. Define custom operators in the Operator Manager
+# 2. Use operator names in this grammar
+# 3. The system will dynamically map operators to their Python functions
+
+<log_op> ::= <custom_comparisons> | and_(<log_op>,<log_op>) | or_(<log_op>,<log_op>) | not_(<log_op>) | <boolean_feature>
+<custom_comparisons> ::= greater_than_or_equal(<num_op>,<num_op>) | less_than_or_equal(<num_op>,<num_op>) | equal(<num_op>,<num_op>) | my_custom_comparison(<num_op>,<num_op>)
+<num_op>   ::= add(<num_op>,<num_op>) | sub(<num_op>,<num_op>) | mul(<num_op>,<num_op>) | pdiv(<num_op>,<num_op>) | my_custom_math(<num_op>,<num_op>) | <nonboolean_feature>
+<boolean_feature> ::= x[1]|x[4]|x[6]|x[8]|x[9]|x[10]|x[11]|x[12]|x[13]|x[14]|x[15]|x[16]|x[17]|x[18]|x[19]|x[20]|x[21]|x[22]|x[23]|x[24]
+<nonboolean_feature> ::= x[0]|x[2]|x[3]|x[5]|x[7]|<c><c>.<c><c>
+<c>  ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+# Note: my_custom_comparison and my_custom_math are example custom operators
+# that would need to be defined in the Operator Manager before using this grammar

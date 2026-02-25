@@ -1,0 +1,103 @@
+' FEC-GE Workflow (PlantUML)
+' =========================
+' Diagram 1: Full run from first generation to end (sampling once, then generation loop with FEC).
+' Diagram 2: Per-individual evaluation showing how sampling feeds the cache and hits give speedup.
+' Render: use PlantUML (jar, VS Code extension, or https://www.plantuml.com/plantuml/uml/).
+
+@startuml FEC_GE_One_Run_Workflow
+title FEC-GE: One Run from First Generation to End
+
+start
+:Load dataset;
+:Train and test split;
+:Initialise empty FEC cache;
+
+:Choose sampling method and fraction;
+:Apply sampling to get centroid points;
+note right: Sample used only for cache keys
+:Store centroid data for cache key;
+
+:Create initial population gen 0;
+:generation = 0;
+
+while (more generations)
+  :generation = generation + 1;
+  :For each individual in population;
+
+  if (test set evaluation) then (yes)
+    :Evaluate on test data;
+    :Return test fitness;
+  else (no)
+    :Build fingerprint from phenotype on sample;
+    if (fingerprint in cache) then (yes)
+      :Return cached fitness;
+      note right: Speedup
+    else (no)
+      :Evaluate on full training set;
+      :Compute and store fitness in cache;
+      :Return fitness;
+    endif
+  endif
+
+  :Assign fitness;
+  :Selection crossover mutation;
+  :Replace population;
+  :Record stats;
+endwhile
+
+:Return best individual;
+:Return cache statistics;
+stop
+
+@enduml
+
+' =============================================================================
+' Diagram 2: Per-individual evaluation flow (cache + sampling → speedup)
+' =============================================================================
+
+@startuml FEC_GE_Evaluate_One_Individual
+!theme plain
+title Evaluate one individual (training)\nHow sampling feeds the cache and leads to speedup
+
+skinparam defaultTextAlignment center
+
+rectangle "**Inputs**" as inputs #F5F5F5 {
+  (individual\nphenotype) as ind
+  (full training data\nX_train, y_train) as full
+  (sampled data\ncentroid_X, centroid_y) as sample
+}
+
+rectangle "**FEC evaluation**" as fec #E8F5E9 {
+  (Build fingerprint) as build
+  (Cache lookup) as lookup
+  (Return cached fitness) as hit
+  (Evaluate on FULL training set) as miss_eval
+  (Store fitness in cache) as store
+  (Return fitness_full) as miss_ret
+}
+
+inputs -[hidden]right- fec
+
+ind --> build
+sample --> build
+note right of build
+  **Sampling method** (k-means, farthest-point,
+  stratified, …) chose which rows of X_train
+  form **centroid_X**. We run phenotype on
+  **this sample only** to get behavior key.
+end note
+
+build --> lookup : fingerprint =\nhash(behavior on sample)
+
+lookup --> hit : **HIT**\n(fingerprint seen before)
+lookup --> miss_eval : **MISS**\n(new fingerprint)
+
+full --> miss_eval
+
+hit --> (Speedup:\nno full eval)
+miss_eval --> store : fitness_full
+store --> miss_ret
+miss_ret --> (Full eval done;\nstored for future hits)
+
+@enduml
+

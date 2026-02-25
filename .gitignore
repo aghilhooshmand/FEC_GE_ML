@@ -1,0 +1,27 @@
+############################
+# Python / environment
+############################
+venv/
+*.venv
+.env
+*.env
+__pycache__/
+*.py[cod]
+*.pyo
+
+############################
+# Editor / tooling
+############################
+.vscode/
+.idea/
+.cursor/
+*.swp
+
+############################
+# Results: keep only HTML and summary CSVs
+############################
+results/*
+results/**/*
+!results/**/*.html
+!results/**/*summary*.csv
+

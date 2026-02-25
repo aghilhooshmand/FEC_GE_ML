@@ -1,0 +1,40 @@
+# Universal Grammar for Classification - UGE Classification
+# Ultra-minimal design with only 4 core non-terminals using existing functions
+# Based on heartDisease.bnf structure but universal for any dataset
+# 
+# Usage Notes:
+# - x[0], x[1], x[2], ... represent numerical features
+# - b[0], b[1], b[2], ... represent boolean features  
+# - Uses existing functions from functions.py + 4 new comparison functions added by Aghil
+# - Features are automatically mapped based on dataset column types
+
+<log_op> ::= <boolean_feature>
+           | not_(<log_op>)
+           | and_(<log_op>,<log_op>)
+           | or_(<log_op>,<log_op>)
+           | <comparison>
+
+<comparison> ::= less_than(<num_op>,<num_op>)
+               | less_than_or_equal(<num_op>,<num_op>)
+               | greater_than(<num_op>,<num_op>)
+               | greater_than_or_equal(<num_op>,<num_op>)
+               | equal(<num_op>,<num_op>)
+               | not_equal(<num_op>,<num_op>)
+
+<num_op> ::= <numeric_feature>
+           | <constant>
+           | add(<num_op>,<num_op>)
+           | sub(<num_op>,<num_op>)
+           | mul(<num_op>,<num_op>)
+           | pdiv(<num_op>,<num_op>)
+           | abs_(<num_op>)
+           | if_(<log_op>,<num_op>,<num_op>)
+
+<numeric_feature> ::= x[<int_index>]
+<boolean_feature> ::= x[<bool_index>]
+
+<constant> ::= <int>.<int> | <int>
+<int> ::= <digit> | <digit><int>
+<digit> ::= 0|1|2|3|4|5|6|7|8|9
+<int_index>::=?
+<bool_index>::=?
