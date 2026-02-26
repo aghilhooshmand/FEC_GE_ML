@@ -17,7 +17,6 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from deap import base, creator, tools
 from sklearn.model_selection import train_test_split
-from sklearn.datasets import fetch_openml
 from scipy import stats
 from scipy.spatial.distance import cdist
 
@@ -343,37 +342,28 @@ def _build_config_summary_html(cfg: Dict[str, Any]) -> str:
 
 def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Load dataset according to configuration.
+    Load dataset from a local CSV file, then apply simple preprocessing.
 
-    Two modes are supported:
-      1) Offline CSV (default): uses ``dataset.file`` in ./data.
-      2) Remote UCI/OpenML by ID: uses ``dataset.source = 'uci_openml'`` and
-         ``dataset.uci_id`` to fetch via sklearn.datasets.fetch_openml.
+    Controlled by:
+      - ``dataset.file``: CSV file under ./data
+      - ``dataset.label_column``: name of target column (falls back to last column)
+      - ``dataset.sample_fraction`` (optional): if 0 < frac < 1, use a stratified
+        subset of that fraction, preserving the class distribution.
     """
-    source = (cfg.get("dataset.source") or "csv").lower()
     label_column = cfg.get("dataset.label_column")
 
-    if source in ("csv", "offline"):
-        data_dir = Path.cwd() / "data"
-        csv_path = data_dir / cfg["dataset.file"]
+    data_dir = Path.cwd() / "data"
+    csv_path = data_dir / cfg["dataset.file"]
 
-        df = pd.read_csv(csv_path)
-        df = preprocess_dataframe(df)
-    elif source in ("uci", "uci_openml"):
-        uci_id = cfg.get("dataset.uci_id")
-        if uci_id is None:
-            raise ValueError("dataset.uci_id must be set when dataset.source='uci_openml'.")
-        # Fetch from OpenML; many UCI datasets are mirrored there.
-        dataset = fetch_openml(data_id=uci_id, as_frame=True)
-        df = dataset.frame.copy()
-        df = preprocess_dataframe(df)
-    else:
-        raise ValueError(f"Unknown dataset.source '{source}'. Expected 'csv' or 'uci_openml'.")
-    # Determine label column (for both full use and stratified subsampling)
+    df = pd.read_csv(csv_path)
+    df = preprocess_dataframe(df)
+
+    # Determine label column
     if label_column and label_column in df.columns:
         label_col = label_column
     else:
         label_col = df.columns[-1]
+    cfg["dataset.label_column"] = str(label_col)
 
     # Optional stratified subsampling (preserve class ratio, use a fraction of rows)
     sample_fraction = cfg.get("dataset.sample_fraction")
@@ -383,7 +373,6 @@ def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
         except (TypeError, ValueError):
             frac = 1.0
         if 0.0 < frac < 1.0:
-            # Use train_test_split to get a stratified subset of the desired size
             y_all = df[label_col]
             df, _ = train_test_split(
                 df,

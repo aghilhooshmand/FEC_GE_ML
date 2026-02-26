@@ -4,20 +4,14 @@
 
 CONFIG = {
     # --- Dataset inputs -----------------------------------------------------
-    # dataset.source:
-    #   - "csv" (or "offline"): read from ./data using dataset.file (default)
-    #   - "uci_openml": fetch a UCI dataset mirrored on OpenML by numeric ID
-    "dataset.source": "uci_openml",
-    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",  # CSV file in ./data directory (when source='csv')
+    # Local CSV under ./data
+    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
     "dataset.label_column": "RFS_STATUS",  # Target column name (uses last column if missing)
     # Optional subsampling of the dataset before train/test split.
     # - If None or 1.0: use the full dataset.
     # - If 0 < dataset.sample_fraction < 1.0: randomly select that fraction of
     #   rows, preserving the class ratio (stratified on the label column).
-    "dataset.sample_fraction": 0.01,
-    # When using dataset.source = "uci_openml", set dataset.uci_id to the OpenML data_id
-    # corresponding to the desired UCI dataset (see https://www.openml.org/).
-    "dataset.uci_id": 2,
+    "dataset.sample_fraction": None,
     "dataset.test_size": 0.2,  # Fraction of data used for testing (0.0-1.0)
 
     # --- Grammar configuration ----------------------------------------------

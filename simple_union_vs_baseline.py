@@ -35,7 +35,6 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from deap import base, creator, tools
 from sklearn.model_selection import train_test_split
-from sklearn.datasets import fetch_openml
 from scipy import stats
 from multiprocessing.pool import ThreadPool
 
@@ -49,7 +48,13 @@ import grape.algorithms as ga
 
 from sampling_methods import get_sampling_function
 from operators import OPERATORS as OP_OPERATORS, UNARIES as OP_UNARIES
-from util import FECCache, PhenotypeTracker, create_fitness_eval, load_operators as util_load_operators
+from util import (
+    FECCache,
+    PhenotypeTracker,
+    create_fitness_eval,
+    load_operators as util_load_operators,
+    load_dataset as util_load_dataset,
+)
 from config import CONFIG
 
 
@@ -57,7 +62,6 @@ from config import CONFIG
 # Simple configuration (all from CONFIG)
 # ---------------------------------------------------------------------------
 
-DATA_FILE = Path("data") / CONFIG["dataset.file"]
 GRAMMAR_FILE = Path("grammars") / CONFIG["grammar.file"]
 
 POP_SIZE = CONFIG["evolution.population"]
@@ -76,20 +80,6 @@ RESULTS_BASE.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 # Helpers: data, operators, fitness
 # ---------------------------------------------------------------------------
-
-
-def load_dataset(path: Path) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Load the Cleveland dataset with a header row.
-    Assumes:
-      - last column is the label
-      - all feature columns are numeric
-    """
-    df = pd.read_csv(path)
-    df = df.replace("?", np.nan).dropna(axis=0)
-    y = df.iloc[:, -1].astype(int).to_numpy()
-    X = df.iloc[:, :-1].to_numpy(dtype=float)
-    return X, y
 
 
 def baseline_fitness(individual: Any, points: Tuple[np.ndarray, np.ndarray], operators: Dict[str, Any]) -> Tuple[float]:
@@ -480,7 +470,9 @@ def main() -> None:
     experiment_dir.mkdir(parents=True, exist_ok=True)
     print(f"Experiment output directory: {experiment_dir}")
 
-    X, y = load_dataset(DATA_FILE)
+    # Use the shared util.load_dataset so that CSV vs UCI/OpenML and
+    # dataset.sample_fraction behave consistently with the main pipeline.
+    X, y = util_load_dataset(CONFIG)
 
     # Baseline: full dataset, no cache
     baseline_df, baseline_summary, baseline_individuals, _ = run_one_experiment(
@@ -927,27 +919,10 @@ def main() -> None:
     # Combine into one HTML file
     config_json = json.dumps(CONFIG, indent=2, sort_keys=True)
 
-    # Build a human-readable dataset description based on CONFIG.
-    dataset_source = (CONFIG.get("dataset.source") or "csv").lower()
-    dataset_desc = ""
-    if dataset_source in ("uci", "uci_openml"):
-        uci_id = CONFIG.get("dataset.uci_id")
-        label_col = CONFIG.get("dataset.label_column")
-        dataset_name = None
-        try:
-            if uci_id is not None:
-                ds = fetch_openml(data_id=uci_id)
-                # Try several possible name attributes
-                dataset_name = getattr(ds, "name", None) or ds.details.get("name")
-        except Exception:
-            dataset_name = None
-        if dataset_name is None:
-            dataset_name = f"OpenML data_id={uci_id}"
-        dataset_desc = f"Dataset: {dataset_name} (source=uci_openml, id={uci_id}), label={label_col}"
-    else:
-        dataset_file = CONFIG.get("dataset.file")
-        label_col = CONFIG.get("dataset.label_column")
-        dataset_desc = f"Dataset: file={dataset_file}, label={label_col}"
+    # Build a human-readable dataset description based on CONFIG (local CSV only).
+    dataset_file = CONFIG.get("dataset.file")
+    label_col = CONFIG.get("dataset.label_column")
+    dataset_desc = f"Dataset: file={dataset_file}, label={label_col}"
 
     grammar_file = CONFIG.get("grammar.file")
     if grammar_file:
