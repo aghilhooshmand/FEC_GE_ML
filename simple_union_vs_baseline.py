@@ -22,6 +22,7 @@ The goal is clarity, not feature completeness.
 """
 
 import math
+import os
 from datetime import datetime
 import json
 from pathlib import Path
@@ -34,7 +35,9 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from deap import base, creator, tools
 from sklearn.model_selection import train_test_split
+from sklearn.datasets import fetch_openml
 from scipy import stats
+from multiprocessing.pool import ThreadPool
 
 # Ensure project root (containing 'grape', 'sampling_methods', 'operators', 'util') is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -240,30 +243,47 @@ def run_one_experiment(
         points_train = [X_train, y_train]
         points_test = [X_test, y_test]
 
-        # Run evolutionary algorithm (always using FEC-aware variant so we can track phenotypes)
-        pop, logbook = ga.ge_eaSimpleWithElitism_fec(
-            pop,
-            toolbox,
-            cxpb=0.8,
-            mutpb=0.05,
-            ngen=N_GEN,
-            elite_size=1,
-            bnf_grammar=grammar,
-            codon_size=255,
-            max_tree_depth=35,
-            max_genome_length=None,
-            points_train=points_train,
-            points_test=points_test,
-            codon_consumption="lazy",
-            report_items=["gen", "invalid", "avg", "std", "min", "max", "fitness_test"],
-            genome_representation="list",
-            stats=stats,
-            halloffame=hof,
-            verbose=False,
-            run_id=None,
-            fec_cache=run_cache,
-            phenotype_tracker=tracker,
-        )
+        # Optional parallel evaluation across individuals using a thread pool.
+        # Threads share the same FECCache and numpy releases the GIL, so this can
+        # exploit multiple CPU cores on a server.
+        n_workers_cfg = CONFIG.get("parallel.n_workers")
+        try:
+            n_workers = int(n_workers_cfg) if n_workers_cfg is not None else (os.cpu_count() or 1)
+        except (TypeError, ValueError):
+            n_workers = os.cpu_count() or 1
+        n_workers = max(1, n_workers)
+
+        pool = ThreadPool(processes=n_workers)
+        toolbox.register("map", pool.map)
+
+        try:
+            # Run evolutionary algorithm (always using FEC-aware variant so we can track phenotypes)
+            pop, logbook = ga.ge_eaSimpleWithElitism_fec(
+                pop,
+                toolbox,
+                cxpb=0.8,
+                mutpb=0.05,
+                ngen=N_GEN,
+                elite_size=1,
+                bnf_grammar=grammar,
+                codon_size=255,
+                max_tree_depth=35,
+                max_genome_length=None,
+                points_train=points_train,
+                points_test=points_test,
+                codon_consumption="lazy",
+                report_items=["gen", "invalid", "avg", "std", "min", "max", "fitness_test"],
+                genome_representation="list",
+                stats=stats,
+                halloffame=hof,
+                verbose=False,
+                run_id=None,
+                fec_cache=run_cache,
+                phenotype_tracker=tracker,
+            )
+        finally:
+            pool.close()
+            pool.join()
 
         all_logbooks.append(logbook)
         if mode == "union_cache" and run_cache is not None:
@@ -906,6 +926,33 @@ def main() -> None:
 
     # Combine into one HTML file
     config_json = json.dumps(CONFIG, indent=2, sort_keys=True)
+
+    # Build a human-readable dataset description based on CONFIG.
+    dataset_source = (CONFIG.get("dataset.source") or "csv").lower()
+    dataset_desc = ""
+    if dataset_source in ("uci", "uci_openml"):
+        uci_id = CONFIG.get("dataset.uci_id")
+        label_col = CONFIG.get("dataset.label_column")
+        dataset_name = None
+        try:
+            if uci_id is not None:
+                ds = fetch_openml(data_id=uci_id)
+                # Try several possible name attributes
+                dataset_name = getattr(ds, "name", None) or ds.details.get("name")
+        except Exception:
+            dataset_name = None
+        if dataset_name is None:
+            dataset_name = f"OpenML data_id={uci_id}"
+        dataset_desc = f"Dataset: {dataset_name} (source=uci_openml, id={uci_id}), label={label_col}"
+    else:
+        dataset_file = CONFIG.get("dataset.file")
+        label_col = CONFIG.get("dataset.label_column")
+        dataset_desc = f"Dataset: file={dataset_file}, label={label_col}"
+
+    grammar_file = CONFIG.get("grammar.file")
+    if grammar_file:
+        dataset_desc += f"; Grammar: {grammar_file}"
+
     html = (
         "<html><head>"
         "<meta charset='utf-8' />"
@@ -916,7 +963,7 @@ def main() -> None:
         "<pre style='font-size: 12px; background:#f7f7f7; padding:8px; border:1px solid #ddd;'>"
         + config_json +
         "</pre>"
-        "<p>Dataset: processed.cleveland.data; Grammar: heartDisease.bnf</p>"
+        f"<p>{dataset_desc}</p>"
         + "".join(sections) +
         "</body></html>"
     )

@@ -127,10 +127,15 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
         else:
             logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
 
-    start_gen = time.time()        
+    start_gen = time.time()
     # Evaluate the individuals with an invalid fitness
-    for ind in population:
-        if not ind.fitness.valid:
+    invalid_inds = [ind for ind in population if not ind.fitness.valid]
+    if hasattr(toolbox, "map"):
+        eval_results = list(toolbox.map(lambda ind: toolbox.evaluate(ind, points_train), invalid_inds))
+        for ind, fit in zip(invalid_inds, eval_results):
+            ind.fitness.values = fit
+    else:
+        for ind in invalid_inds:
             ind.fitness.values = toolbox.evaluate(ind, points_train)
         
     valid0 = [ind for ind in population if not ind.invalid]
@@ -284,8 +289,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
             set_cache_context(run_id, gen)
     
         # Select the next generation individuals
-        start = time.time()    
-        offspring = toolbox.select(valid, len(population)-elite_size)
+        start = time.time()
+        # If all individuals became invalid or have NaN fitness, fall back to using
+        # the full population for selection to avoid an empty pool.
+        selection_pool = valid if len(valid) > 0 else population
+        offspring = toolbox.select(selection_pool, len(population)-elite_size)
         end = time.time()
         selection_time = end-start
         # Vary the pool of individuals
@@ -626,8 +634,13 @@ def ge_eaSimpleWithElitism_fec(population, toolbox, cxpb, mutpb, ngen, elite_siz
                            codon_consumption, genome_representation,
                            max_genome_length)
 
-        for ind in offspring:
-            if not ind.fitness.valid:
+        invalid_offspring = [ind for ind in offspring if not ind.fitness.valid]
+        if hasattr(toolbox, "map"):
+            eval_results = list(toolbox.map(lambda ind: toolbox.evaluate(ind, points_train), invalid_offspring))
+            for ind, fit in zip(invalid_offspring, eval_results):
+                ind.fitness.values = fit
+        else:
+            for ind in invalid_offspring:
                 ind.fitness.values = toolbox.evaluate(ind, points_train)
                 
         population[:] = offspring

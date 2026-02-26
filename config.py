@@ -4,18 +4,30 @@
 
 CONFIG = {
     # --- Dataset inputs -----------------------------------------------------
-    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",  # CSV file in ./data directory
+    # dataset.source:
+    #   - "csv" (or "offline"): read from ./data using dataset.file (default)
+    #   - "uci_openml": fetch a UCI dataset mirrored on OpenML by numeric ID
+    "dataset.source": "uci_openml",
+    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",  # CSV file in ./data directory (when source='csv')
     "dataset.label_column": "RFS_STATUS",  # Target column name (uses last column if missing)
+    # Optional subsampling of the dataset before train/test split.
+    # - If None or 1.0: use the full dataset.
+    # - If 0 < dataset.sample_fraction < 1.0: randomly select that fraction of
+    #   rows, preserving the class ratio (stratified on the label column).
+    "dataset.sample_fraction": 0.01,
+    # When using dataset.source = "uci_openml", set dataset.uci_id to the OpenML data_id
+    # corresponding to the desired UCI dataset (see https://www.openml.org/).
+    "dataset.uci_id": 2,
     "dataset.test_size": 0.2,  # Fraction of data used for testing (0.0-1.0)
 
     # --- Grammar configuration ----------------------------------------------
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 200,  # Number of individuals per generation
-    "evolution.generations": 50,  # Number of evolutionary generations per run
+    "evolution.population": 10,  # Number of individuals per generation
+    "evolution.generations": 2,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
-    "evolution.n_runs": 20,  # Number of independent runs for statistics/averaging
+    "evolution.n_runs": 2,  # Number of independent runs for statistics/averaging
 
     # --- GA operator tuning -------------------------------------------------
     "ga_parameters.p_crossover": 0.8,  # Probability of crossover between parents
@@ -34,6 +46,11 @@ CONFIG = {
     "ge_parameters.max_init_genome_length": None,  # Optional cap on genome length on creation
     "ge_parameters.max_genome_length": None,  # Optional cap enforced during evolution
     "ge_parameters.max_wraps": 0,  # Number of grammar wraps allowed during mapping
+
+    # --- Parallel evaluation --------------------------------------------------
+    # Number of worker threads used to evaluate individuals in parallel.
+    # None = use os.cpu_count() on the server.
+    "parallel.n_workers": None,
 
     # --- Reporting controls -------------------------------------------------
     # Metrics extracted from DEAP logbook that end up in CSV export (list of strings)

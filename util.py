@@ -17,8 +17,14 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from deap import base, creator, tools
 from sklearn.model_selection import train_test_split
+from sklearn.datasets import fetch_openml
 from scipy import stats
 from scipy.spatial.distance import cdist
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency
+    psutil = None
 
 import grape.grape as grape
 import grape.algorithms
@@ -112,6 +118,22 @@ __all__ = [
     "auto_select_sampling_method",
     "compute_statistical_distance",
 ]
+
+
+def _get_cpu_core_index() -> Optional[int]:
+    """
+    Best-effort helper to get the current CPU core index.
+
+    Uses psutil.Process().cpu_num() when available; otherwise returns None.
+    """
+    if psutil is None:
+        return None
+    try:
+        proc = psutil.Process()
+        core = proc.cpu_num()
+        return int(core) if core is not None else None
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -321,24 +343,58 @@ def _build_config_summary_html(cfg: Dict[str, Any]) -> str:
 
 def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Load dataset from CSV, then apply a very simple preprocessing step
-    (handled by preprocess_dataframe).
+    Load dataset according to configuration.
+
+    Two modes are supported:
+      1) Offline CSV (default): uses ``dataset.file`` in ./data.
+      2) Remote UCI/OpenML by ID: uses ``dataset.source = 'uci_openml'`` and
+         ``dataset.uci_id`` to fetch via sklearn.datasets.fetch_openml.
     """
-    data_dir = Path.cwd() / "data"
-    csv_path = data_dir / cfg["dataset.file"]
+    source = (cfg.get("dataset.source") or "csv").lower()
     label_column = cfg.get("dataset.label_column")
 
-    # Read CSV (raw)
-    df = pd.read_csv(csv_path)
-    # Apply simple preprocessing
-    df = preprocess_dataframe(df)
+    if source in ("csv", "offline"):
+        data_dir = Path.cwd() / "data"
+        csv_path = data_dir / cfg["dataset.file"]
 
-    if label_column in df.columns:
-        y = df[label_column].astype(int).to_numpy()
-        X = df.drop(columns=[label_column]).to_numpy(dtype=float)
+        df = pd.read_csv(csv_path)
+        df = preprocess_dataframe(df)
+    elif source in ("uci", "uci_openml"):
+        uci_id = cfg.get("dataset.uci_id")
+        if uci_id is None:
+            raise ValueError("dataset.uci_id must be set when dataset.source='uci_openml'.")
+        # Fetch from OpenML; many UCI datasets are mirrored there.
+        dataset = fetch_openml(data_id=uci_id, as_frame=True)
+        df = dataset.frame.copy()
+        df = preprocess_dataframe(df)
     else:
-        y = df.iloc[:, -1].astype(int).to_numpy()
-        X = df.iloc[:, :-1].to_numpy(dtype=float)
+        raise ValueError(f"Unknown dataset.source '{source}'. Expected 'csv' or 'uci_openml'.")
+    # Determine label column (for both full use and stratified subsampling)
+    if label_column and label_column in df.columns:
+        label_col = label_column
+    else:
+        label_col = df.columns[-1]
+
+    # Optional stratified subsampling (preserve class ratio, use a fraction of rows)
+    sample_fraction = cfg.get("dataset.sample_fraction")
+    if sample_fraction is not None:
+        try:
+            frac = float(sample_fraction)
+        except (TypeError, ValueError):
+            frac = 1.0
+        if 0.0 < frac < 1.0:
+            # Use train_test_split to get a stratified subset of the desired size
+            y_all = df[label_col]
+            df, _ = train_test_split(
+                df,
+                train_size=frac,
+                stratify=y_all,
+                random_state=int(cfg.get("evolution.random_seed", 42)),
+            )
+
+    # Final X, y extraction
+    y = df[label_col].astype(int).to_numpy()
+    X = df.drop(columns=[label_col]).to_numpy(dtype=float)
     return X, y
 
 
@@ -859,6 +915,7 @@ class PhenotypeTracker:
                     "run": self.current_run,
                     "generation": self.current_gen,
                     "individual_index": idx,
+                    "cpu_core": getattr(individual, "cpu_core", None),
                     "phenotype": phenotype,
                     "genome_length": len(genome),
                     "genome": genome or None,
@@ -903,6 +960,11 @@ def create_fitness_eval(
 
         if getattr(individual, "invalid", False):
             return (float("nan"),)
+
+        # Record which CPU core (or worker) evaluated this individual (best-effort).
+        cpu_core = _get_cpu_core_index()
+        if cpu_core is not None:
+            setattr(individual, "cpu_core", cpu_core)
 
         # Auto-detect if this is test set evaluation by comparing with stored test set reference
         # This handles the case where algorithm calls evaluate() without dataset_type parameter
