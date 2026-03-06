@@ -5,8 +5,8 @@
 CONFIG = {
     # --- Dataset inputs -----------------------------------------------------
     # Local CSV under ./data
-    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
-    "dataset.label_column": "RFS_STATUS",  # Target column name (uses last column if missing)
+    "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
+    "dataset.label_column": "diagnosis",  # Target column name (uses last column if missing)
     # Optional subsampling of the dataset before train/test split.
     # - If None or 1.0: use the full dataset.
     # - If 0 < dataset.sample_fraction < 1.0: randomly select that fraction of
@@ -18,10 +18,10 @@ CONFIG = {
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 10,  # Number of individuals per generation
-    "evolution.generations": 2,  # Number of evolutionary generations per run
+    "evolution.population": 500,  # Number of individuals per generation
+    "evolution.generations": 50,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
-    "evolution.n_runs": 2,  # Number of independent runs for statistics/averaging
+    "evolution.n_runs": 10,  # Number of independent runs for statistics/averaging
 
     # --- GA operator tuning -------------------------------------------------
     "ga_parameters.p_crossover": 0.8,  # Probability of crossover between parents
@@ -45,6 +45,19 @@ CONFIG = {
     # Number of worker threads used to evaluate individuals in parallel.
     # None = use os.cpu_count() on the server.
     "parallel.n_workers": None,
+
+    # --- Batch runs for simple_union_vs_baseline ------------------------------
+    # Controls OS-level parallelism when using run_parallel_simple_union.py.
+    # - evolution.n_runs: total number of independent experiments to run.
+    # - parallel.batch.total_runs: how many experiments are run IN PARALLEL
+    #   (i.e. the maximum number of OS processes at the same time).
+    #   Example: evolution.n_runs = 20, parallel.batch.total_runs = 4
+    #   -> at most 4 processes at once; as each finishes, a new run is started
+    #      until all 20 are complete.
+    # - parallel.batch.base_seed: base seed; each batch run uses
+    #   base_seed + 1000 * run_index.
+    "parallel.batch.total_runs":4, # None,  # None -> use min(os.cpu_count(), evolution.n_runs)
+    "parallel.batch.base_seed": None,  # None -> use evolution.random_seed
 
     # --- Reporting controls -------------------------------------------------
     # Metrics extracted from DEAP logbook that end up in CSV export (list of strings)

@@ -6,6 +6,8 @@ deap
 scikit-learn
 scikit-learn-extra
 scipy
+psutil
+tqdm
 
 psutil
 

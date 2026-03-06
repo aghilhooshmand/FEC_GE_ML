@@ -37,6 +37,7 @@ from deap import base, creator, tools
 from sklearn.model_selection import train_test_split
 from scipy import stats
 from multiprocessing.pool import ThreadPool
+from tqdm.auto import tqdm
 
 # Ensure project root (containing 'grape', 'sampling_methods', 'operators', 'util') is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -68,7 +69,16 @@ POP_SIZE = CONFIG["evolution.population"]
 N_GEN = CONFIG["evolution.generations"]
 N_RUNS = CONFIG["evolution.n_runs"]
 TEST_SIZE = CONFIG["dataset.test_size"]
-RANDOM_SEED = CONFIG["evolution.random_seed"]
+
+# Allow an external seed override (e.g. for parallel batches on a server)
+_seed_env = os.getenv("FEC_GE_SEED")
+if _seed_env is not None:
+    try:
+        RANDOM_SEED = int(_seed_env)
+    except ValueError:
+        RANDOM_SEED = CONFIG["evolution.random_seed"]
+else:
+    RANDOM_SEED = CONFIG["evolution.random_seed"]
 
 SAMPLE_FRACTIONS = CONFIG["fec.sample_sizes"]
 UNION_METHODS = CONFIG["fec.sampling_methods.union"]
@@ -160,7 +170,22 @@ def run_one_experiment(
     tracker = PhenotypeTracker()
     cache_event_rows: List[Dict[str, Any]] = []
 
-    for run_idx in range(N_RUNS):
+    # Determine worker count hint for progress description
+    n_workers_cfg = CONFIG.get("parallel.n_workers")
+    try:
+        n_workers_hint = int(n_workers_cfg) if n_workers_cfg is not None else (os.cpu_count() or 1)
+    except (TypeError, ValueError):
+        n_workers_hint = os.cpu_count() or 1
+    n_workers_hint = max(1, n_workers_hint)
+
+    run_iter = tqdm(
+        range(N_RUNS),
+        desc=f"{mode} (sample={sample_fraction if sample_fraction is not None else 1.0}, workers={n_workers_hint})",
+        unit="run",
+        leave=False,
+    )
+
+    for run_idx in run_iter:
         run_seed = rng_seed + run_idx
         np.random.seed(run_seed)
         tracker.start_run(run_idx + 1)
@@ -236,13 +261,7 @@ def run_one_experiment(
         # Optional parallel evaluation across individuals using a thread pool.
         # Threads share the same FECCache and numpy releases the GIL, so this can
         # exploit multiple CPU cores on a server.
-        n_workers_cfg = CONFIG.get("parallel.n_workers")
-        try:
-            n_workers = int(n_workers_cfg) if n_workers_cfg is not None else (os.cpu_count() or 1)
-        except (TypeError, ValueError):
-            n_workers = os.cpu_count() or 1
-        n_workers = max(1, n_workers)
-
+        n_workers = n_workers_hint
         pool = ThreadPool(processes=n_workers)
         toolbox.register("map", pool.map)
 
