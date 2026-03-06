@@ -10,11 +10,10 @@ use many cores on a server by running several experiments at once.
 
 from __future__ import annotations
 
-import argparse
 import os
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
@@ -260,7 +259,7 @@ def main() -> None:
     batch_tag = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     futures = []
-    with ThreadPoolExecutor(max_workers=max_parallel) as executor:
+    with ProcessPoolExecutor(max_workers=max_parallel) as executor:
         for run_idx in range(total_runs):
             seed = base_seed + 1000 * run_idx
             futures.append(
