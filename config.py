@@ -5,8 +5,8 @@
 CONFIG = {
     # --- Dataset inputs -----------------------------------------------------
     # Local CSV under ./data
-    "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
-    "dataset.label_column": "diagnosis",  # Target column name (uses last column if missing)
+    "dataset.file": "wine.csv",
+    "dataset.label_column": "class",  # Target column name (uses last column if missing)
     # Optional subsampling of the dataset before train/test split.
     # - If None or 1.0: use the full dataset.
     # - If 0 < dataset.sample_fraction < 1.0: randomly select that fraction of
@@ -18,10 +18,10 @@ CONFIG = {
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 300,  # Number of individuals per generation
-    "evolution.generations": 50,  # Number of evolutionary generations per run
+    "evolution.population": 20,  # Number of individuals per generation
+    "evolution.generations": 10,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
-    "evolution.n_runs": 30,  # Number of independent runs for statistics/averaging
+    "evolution.n_runs": 3,  # Number of independent runs for statistics/averaging
 
     # --- GA operator tuning -------------------------------------------------
     "ga_parameters.p_crossover": 0.8,  # Probability of crossover between parents
@@ -40,11 +40,6 @@ CONFIG = {
     "ge_parameters.max_init_genome_length": None,  # Optional cap on genome length on creation
     "ge_parameters.max_genome_length": None,  # Optional cap enforced during evolution
     "ge_parameters.max_wraps": 0,  # Number of grammar wraps allowed during mapping
-
-    # --- Parallel evaluation --------------------------------------------------
-    # Number of worker threads used to evaluate individuals in parallel.
-    # None = use os.cpu_count() on the server.
-    "parallel.n_workers": None,
 
     # --- Reporting controls -------------------------------------------------
     # Metrics extracted from DEAP logbook that end up in CSV export (list of strings)
@@ -71,8 +66,8 @@ CONFIG = {
     
     # Sampling method enable/disable flags (set to True to enable, False to disable)
     "fec.sampling_methods.enabled": {
-        "kmeans": False,
-        "kmedoids": False,
+        "kmeans": True,
+        "kmedoids": True,
         "farthest_point": True,
         "stratified": True,
         "random": True,
@@ -80,7 +75,7 @@ CONFIG = {
         # - When enabled here AND configured via "fec.sampling_methods.union",
         #   the system will build a sample that is the union of several base
         #   sampling methods (see "fec.sampling_methods.union" below).
-        "union": False,
+        "union": True,
     },
     # Union sampling configuration:
     # - False (default): union sampling is disabled.
@@ -125,6 +120,9 @@ CONFIG = {
 
     # --- Output artefacts ---------------------------------------------------
     "output.plot": True,  # Whether to emit Plotly charts (saved under ./results/)
+    # When False, skip writing large per-individual CSVs (e.g. individuals.csv)
+    # to save disk space during batch runs.
+    "output.save_individuals_csv": False,
     # When True, skip running new experiments and ONLY generate HTML reports from an existing CSV
     "reports.from_csv_only": False,
 

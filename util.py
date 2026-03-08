@@ -1543,9 +1543,9 @@ def plot_comparison(results: List[Tuple[str, ExperimentResult]]) -> None:
         )
 
     fig.update_layout(
-        title="Mean Best Fitness per Generation across FEC Configurations",
+        title="Mean Best MAE per Generation across FEC Configurations",
         xaxis_title="Generation",
-        yaxis_title="Best Fitness (lower is better)",
+        yaxis_title="MAE (classification error, lower is better)",
         template="plotly_white",
         hovermode="x unified",
     )
@@ -1670,9 +1670,9 @@ def generate_html_report(
 
     # Note: aggregated_means already contains the average across runs for each generation
     # This accounts for stochasticity by averaging results from num_of_run independent runs
-    add_metric_section("avg", "Training Fitness (Average) - Averaged Across Runs", "Fitness (lower is better)")
-    add_metric_section("fitness_test", "Testing Fitness - Averaged Across Runs", "Fitness (lower is better)")
-    add_metric_section("min", "Training Fitness (Best per generation) - Averaged Across Runs", "Fitness (lower is better)")
+    add_metric_section("avg", "Training MAE (Average) - Averaged Across Runs", "MAE (classification error, lower is better)")
+    add_metric_section("fitness_test", "Testing MAE - Averaged Across Runs", "MAE (classification error, lower is better)")
+    add_metric_section("min", "Training MAE (Best per generation) - Averaged Across Runs", "MAE (classification error, lower is better)")
     add_metric_section("avg_length", "Average Individual Length", "Length")
     add_metric_section("avg_nodes", "Average Node Count", "Nodes")
     add_metric_section("generation_time", "Generation Time per Generation", "Seconds")
@@ -2492,9 +2492,9 @@ def _generate_sample_size_charts(
     
     if len(fig_train_fitness_sampling.data) > 0:
         fig_train_fitness_sampling.update_layout(
-            title="Training Fitness vs Sample Size (Comparing Sampling Methods)",
+            title="Training MAE vs Sample Size (Comparing Sampling Methods)",
             xaxis_title="Sample Fraction",
-            yaxis_title="Training Fitness (lower is better)",
+            yaxis_title="MAE (classification error, lower is better)",
             xaxis_tickformat=".0%",
             template="plotly_white",
             hovermode="x unified",
@@ -2531,9 +2531,9 @@ def _generate_sample_size_charts(
     
     if len(fig_test_fitness_sampling.data) > 0:
         fig_test_fitness_sampling.update_layout(
-            title="Test Fitness vs Sample Size (Comparing Sampling Methods)",
+            title="Test MAE vs Sample Size (Comparing Sampling Methods)",
             xaxis_title="Sample Fraction",
-            yaxis_title="Test Fitness (lower is better)",
+            yaxis_title="MAE (classification error, lower is better)",
             xaxis_tickformat=".0%",
             template="plotly_white",
             hovermode="x unified",
@@ -2756,9 +2756,9 @@ def _generate_sample_size_charts(
                 if len(fig_train.data) > 0:
                     sample_size_note = f" (Sample Fraction: {selected_sample_fraction:.2%})" if selected_sample_fraction is not None else ""
                     fig_train.update_layout(
-                        title=f"Training Fitness over Generations - {sampling_method}{sample_size_note}",
+                        title=f"Training MAE over Generations - {sampling_method}{sample_size_note}",
                         xaxis_title="Generation",
-                        yaxis_title="Training Fitness (lower is better)",
+                        yaxis_title="MAE (classification error, lower is better)",
                         template="plotly_white",
                         hovermode="x unified",
                         legend_title="FEC Mode",
@@ -2784,9 +2784,9 @@ def _generate_sample_size_charts(
                 if len(fig_test.data) > 0:
                     sample_size_note = f" (Sample Fraction: {selected_sample_fraction:.2%})" if selected_sample_fraction is not None else ""
                     fig_test.update_layout(
-                        title=f"Test Fitness over Generations - {sampling_method}{sample_size_note}",
+                        title=f"Test MAE over Generations - {sampling_method}{sample_size_note}",
                         xaxis_title="Generation",
-                        yaxis_title="Test Fitness (lower is better)",
+                        yaxis_title="MAE (classification error, lower is better)",
                         template="plotly_white",
                         hovermode="x unified",
                         legend_title="FEC Mode",
@@ -2988,9 +2988,9 @@ def generate_consolidated_html_report(
         # Note: aggregated_means already contains the average across runs for each generation
         # "avg" = average fitness across population, averaged across all runs per generation
         # "fitness_test" = test fitness, averaged across all runs per generation
-        add_metric_section("avg", "Training Fitness (Average) - Averaged Across Runs", "Fitness (lower is better)", include_fec_disabled=True)
-        add_metric_section("fitness_test", "Testing Fitness - Averaged Across Runs", "Fitness (lower is better)", include_fec_disabled=True)
-        add_metric_section("min", "Training Fitness (Best per generation) - Averaged Across Runs", "Fitness (lower is better)")
+        add_metric_section("avg", "Training MAE (Average) - Averaged Across Runs", "MAE (classification error, lower is better)", include_fec_disabled=True)
+        add_metric_section("fitness_test", "Testing MAE - Averaged Across Runs", "MAE (classification error, lower is better)", include_fec_disabled=True)
+        add_metric_section("min", "Training MAE (Best per generation) - Averaged Across Runs", "MAE (classification error, lower is better)")
         add_metric_section("avg_length", "Average Individual Length", "Length")
         add_metric_section("avg_nodes", "Average Node Count", "Nodes")
         add_metric_section("avg_depth", "Average Tree Depth", "Depth")
@@ -3616,9 +3616,9 @@ def generate_fec_disabled_vs_union_comparison(
         fig_train_avg.add_trace(go.Scatter(**trace_kwargs_fec))
         
         layout_updates = {
-            "title": f"Training Fitness (Average) Through Generations - Fraction {sample_fraction:.2%}",
+            "title": f"Training MAE (Average) Through Generations - Fraction {sample_fraction:.2%}",
             "xaxis_title": "Generation",
-            "yaxis_title": "Training Fitness (Average, lower is better)",
+            "yaxis_title": "MAE (classification error, lower is better)",
             "template": "plotly_white",
             "hovermode": "x unified",
             "legend": dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
@@ -3633,8 +3633,8 @@ def generate_fec_disabled_vs_union_comparison(
     # Note: aggregated_means contains the average across runs for each generation
     # -------------------------------------------------------------------------
     html_sections.append("<hr>")
-    html_sections.append("<h2>Testing Fitness Through Generations: FEC Disabled vs Union</h2>")
-    html_sections.append("<p>One chart per sample fraction comparing testing fitness over generations. "
+    html_sections.append("<h2>Testing MAE Through Generations: FEC Disabled vs Union</h2>")
+    html_sections.append("<p>One chart per sample fraction comparing testing MAE over generations. "
                         "Values shown are averaged across all runs for each generation (accounting for stochasticity).</p>")
     
     for sample_fraction, sample_size, sampling_method, run_results in union_results:
@@ -3696,9 +3696,9 @@ def generate_fec_disabled_vs_union_comparison(
         fig_test.add_trace(go.Scatter(**trace_kwargs_fec_test))
         
         layout_updates = {
-            "title": f"Testing Fitness Through Generations - Fraction {sample_fraction:.2%}",
+            "title": f"Testing MAE Through Generations - Fraction {sample_fraction:.2%}",
             "xaxis_title": "Generation",
-            "yaxis_title": "Testing Fitness (lower is better)",
+            "yaxis_title": "MAE (classification error, lower is better)",
             "template": "plotly_white",
             "hovermode": "x unified",
             "legend": dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
@@ -4055,9 +4055,9 @@ def generate_methods_comparison_charts(
             
             if len(fig_train_method.data) > 1:  # More than just baseline
                 layout_updates = {
-                    "title": f"Training Fitness (Average): {method.capitalize()} vs FEC Disabled (Baseline)",
+                    "title": f"Training MAE (Average): {method.capitalize()} vs FEC Disabled (Baseline)",
                     "xaxis_title": "Generation",
-                    "yaxis_title": "Training Fitness (Average, lower is better)",
+                    "yaxis_title": "MAE (classification error, lower is better)",
                     "template": "plotly_white",
                     "hovermode": "x unified",
                     "legend": dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
@@ -4122,9 +4122,9 @@ def generate_methods_comparison_charts(
             
             if len(fig_test_method.data) > 1:  # More than just baseline
                 layout_updates = {
-                    "title": f"Testing Fitness: {method.capitalize()} vs FEC Disabled (Baseline)",
+                    "title": f"Testing MAE: {method.capitalize()} vs FEC Disabled (Baseline)",
                     "xaxis_title": "Generation",
-                    "yaxis_title": "Testing Fitness (lower is better)",
+                    "yaxis_title": "MAE (classification error, lower is better)",
                     "template": "plotly_white",
                     "hovermode": "x unified",
                     "legend": dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
@@ -4329,16 +4329,16 @@ def generate_union_vs_fec_disabled_comparison(
     ))
     
     fig_train.update_layout(
-        title="Training Fitness: Union vs FEC Disabled",
+        title="Training MAE: Union vs FEC Disabled",
         xaxis_title="Effective Fraction of Dataset (Union) / Full Dataset (FEC Disabled)",
-        yaxis_title="Training Fitness (Best)",
+        yaxis_title="MAE (classification error, lower is better)",
         template="plotly_white",
         hovermode="x unified",
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
         xaxis=dict(tickformat=".0%"),
     )
     
-    html_sections.append("<h2>Training Fitness Comparison</h2>")
+    html_sections.append("<h2>Training MAE Comparison</h2>")
     html_sections.append(pio.to_html(fig_train, include_plotlyjs="cdn", full_html=False))
     
     # Chart 2: Testing Fitness Comparison
@@ -4364,16 +4364,16 @@ def generate_union_vs_fec_disabled_comparison(
     ))
     
     fig_test.update_layout(
-        title="Testing Fitness: Union vs FEC Disabled",
+        title="Testing MAE: Union vs FEC Disabled",
         xaxis_title="Effective Fraction of Dataset (Union) / Full Dataset (FEC Disabled)",
-        yaxis_title="Testing Fitness (Best)",
+        yaxis_title="MAE (classification error, lower is better)",
         template="plotly_white",
         hovermode="x unified",
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
         xaxis=dict(tickformat=".0%"),
     )
     
-    html_sections.append("<h2>Testing Fitness Comparison</h2>")
+    html_sections.append("<h2>Testing MAE Comparison</h2>")
     html_sections.append(pio.to_html(fig_test, include_plotlyjs="cdn", full_html=False))
     
     # Chart 3: Hit Rate (Union only, FEC Disabled has no cache)
@@ -4442,7 +4442,7 @@ def generate_union_vs_fec_disabled_comparison(
         x=union_eff_fracs,
         y=union_train_fits,
         mode="lines+markers",
-        name="Union - Training Fitness",
+        name="Union - Training MAE",
         line=dict(color="blue", width=2),
         marker=dict(size=8),
         yaxis="y",
@@ -4452,7 +4452,7 @@ def generate_union_vs_fec_disabled_comparison(
         x=[1.0],
         y=[fec_disabled_train_fitness],
         mode="markers",
-        name="FEC Disabled - Training Fitness",
+        name="FEC Disabled - Training MAE",
         marker=dict(size=12, color="red", symbol="diamond"),
         yaxis="y",
     ))
@@ -4462,7 +4462,7 @@ def generate_union_vs_fec_disabled_comparison(
         x=union_eff_fracs,
         y=union_test_fits,
         mode="lines+markers",
-        name="Union - Testing Fitness",
+        name="Union - Testing MAE",
         line=dict(color="green", width=2, dash="dash"),
         marker=dict(size=8),
         yaxis="y2",
@@ -4472,23 +4472,23 @@ def generate_union_vs_fec_disabled_comparison(
         x=[1.0],
         y=[fec_disabled_test_fitness],
         mode="markers",
-        name="FEC Disabled - Testing Fitness",
+        name="FEC Disabled - Testing MAE",
         marker=dict(size=12, color="orange", symbol="diamond"),
         yaxis="y2",
     ))
     
     fig_combined.update_layout(
-        title="Combined Comparison: Training & Testing Fitness",
+        title="Combined Comparison: Training & Testing MAE",
         xaxis_title="Effective Fraction of Dataset (Union) / Full Dataset (FEC Disabled)",
-        yaxis=dict(title="Training Fitness", side="left"),
-        yaxis2=dict(title="Testing Fitness", side="right", overlaying="y"),
+        yaxis=dict(title="Training MAE (classification error)", side="left"),
+        yaxis2=dict(title="Testing MAE (classification error)", side="right", overlaying="y"),
         template="plotly_white",
         hovermode="x unified",
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
         xaxis=dict(tickformat=".0%"),
     )
     
-    html_sections.append("<h2>Combined Fitness Comparison</h2>")
+    html_sections.append("<h2>Combined MAE Comparison</h2>")
     html_sections.append(pio.to_html(fig_combined, include_plotlyjs="cdn", full_html=False))
     
     # Build final HTML

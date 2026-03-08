@@ -36,7 +36,6 @@ import plotly.io as pio
 from deap import base, creator, tools
 from sklearn.model_selection import train_test_split
 from scipy import stats
-from multiprocessing.pool import ThreadPool
 
 # Ensure project root (containing 'grape', 'sampling_methods', 'operators', 'util') is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -103,7 +102,8 @@ def baseline_fitness(individual: Any, points: Tuple[np.ndarray, np.ndarray], ope
 
     try:
         y_pred = (prediction > 0).astype(int)
-        fitness = 1.0 - np.mean(np.equal(y_true, y_pred))  # 1 - accuracy
+        # MAE (classification error) = 1 - accuracy
+        fitness = 1.0 - np.mean(np.equal(y_true, y_pred))
     except Exception:
         return (float("nan"),)
 
@@ -140,11 +140,14 @@ def run_one_experiment(
     y: np.ndarray,
     sample_fraction: float | None,
     rng_seed: int,
+    fec_sampling_methods: List[str] | None = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Any], pd.DataFrame, pd.DataFrame]:
     """
     Run one multi-run experiment for:
       mode = "baseline"            → no cache, full dataset
-      mode = "union_cache"         → simple cache + union sampling
+      mode = "union_cache"         → FEC cache + sampling (single method or union of methods)
+    fec_sampling_methods: for union_cache, list of method names (e.g. ["kmeans"] or ["kmeans", "farthest_point"]).
+      One method = use that sampling only; multiple = take union of indices.
     Returns:
       - aggregated per-generation statistics (DataFrame with columns gen, avg, min, max, fitness_test)
       - union cache stats (only for union mode; otherwise empty dict)
@@ -185,9 +188,10 @@ def run_one_experiment(
             train_n = X_train.shape[1]
             sample_size = max(1, min(int(round(sample_fraction * train_n)), train_n))  # cap at train_n (K-means needs n_clusters <= n_samples)
 
-            # Build union of indices from multiple methods
+            # Which methods to use: one = single method; several = union of indices
+            methods = fec_sampling_methods if fec_sampling_methods else list(UNION_METHODS)
             indices_all: List[int] = []
-            for m_name in UNION_METHODS:
+            for m_name in methods:
                 sampling_fn = get_sampling_function(m_name)
                 _, _, idx = sampling_fn(X_train, y_train, sample_size, run_seed)
                 indices_all.extend(list(idx))
@@ -233,47 +237,30 @@ def run_one_experiment(
         points_train = [X_train, y_train]
         points_test = [X_test, y_test]
 
-        # Optional parallel evaluation across individuals using a thread pool.
-        # Threads share the same FECCache and numpy releases the GIL, so this can
-        # exploit multiple CPU cores on a server.
-        n_workers_cfg = CONFIG.get("parallel.n_workers")
-        try:
-            n_workers = int(n_workers_cfg) if n_workers_cfg is not None else (os.cpu_count() or 1)
-        except (TypeError, ValueError):
-            n_workers = os.cpu_count() or 1
-        n_workers = max(1, n_workers)
-
-        pool = ThreadPool(processes=n_workers)
-        toolbox.register("map", pool.map)
-
-        try:
-            # Run evolutionary algorithm (always using FEC-aware variant so we can track phenotypes)
-            pop, logbook = ga.ge_eaSimpleWithElitism_fec(
-                pop,
-                toolbox,
-                cxpb=0.8,
-                mutpb=0.05,
-                ngen=N_GEN,
-                elite_size=1,
-                bnf_grammar=grammar,
-                codon_size=255,
-                max_tree_depth=35,
-                max_genome_length=None,
-                points_train=points_train,
-                points_test=points_test,
-                codon_consumption="lazy",
-                report_items=["gen", "invalid", "avg", "std", "min", "max", "fitness_test"],
-                genome_representation="list",
-                stats=stats,
-                halloffame=hof,
-                verbose=False,
-                run_id=None,
-                fec_cache=run_cache,
-                phenotype_tracker=tracker,
-            )
-        finally:
-            pool.close()
-            pool.join()
+        # Run evolutionary algorithm (always using FEC-aware variant so we can track phenotypes)
+        pop, logbook = ga.ge_eaSimpleWithElitism_fec(
+            pop,
+            toolbox,
+            cxpb=0.8,
+            mutpb=0.05,
+            ngen=N_GEN,
+            elite_size=1,
+            bnf_grammar=grammar,
+            codon_size=255,
+            max_tree_depth=35,
+            max_genome_length=None,
+            points_train=points_train,
+            points_test=points_test,
+            codon_consumption="lazy",
+            report_items=["gen", "invalid", "avg", "std", "min", "max", "fitness_test"],
+            genome_representation="list",
+            stats=stats,
+            halloffame=hof,
+            verbose=False,
+            run_id=None,
+            fec_cache=run_cache,
+            phenotype_tracker=tracker,
+        )
 
         all_logbooks.append(logbook)
         if mode == "union_cache" and run_cache is not None:
@@ -464,9 +451,11 @@ def run_one_experiment(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    # Unique folder for this experiment run (date and time)
+    # Folder name: timestamp + dataset + Gen_Pop_Run for quick identification
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_dir = RESULTS_BASE / timestamp
+    dataset_stem = Path(CONFIG.get("dataset.file", "data")).stem
+    folder_name = f"{timestamp}_{dataset_stem}_Gen_{N_GEN}_Pop_{POP_SIZE}_Run_{N_RUNS}"
+    experiment_dir = RESULTS_BASE / folder_name
     experiment_dir.mkdir(parents=True, exist_ok=True)
     print(f"Experiment output directory: {experiment_dir}")
 
@@ -479,34 +468,51 @@ def main() -> None:
         "baseline", X, y, None, RANDOM_SEED
     )
 
-    # Union with cache: one run per fraction
-    union_results: Dict[float, pd.DataFrame] = {}
-    union_summaries: Dict[float, Dict[str, Any]] = {}
-    union_hit_rates: List[float] = []
-    union_fake_rates: List[float] = []
-    used_fractions: List[float] = []
+    # FEC experiments: first, one experiment per enabled (non-union) method; then, only if union is True, one experiment for union (methods from fec.sampling_methods.union).
+    enabled_cfg = CONFIG.get("fec.sampling_methods.enabled", {})
+    fec_configs: List[Tuple[str, List[str]]] = []
+    # 1) For each method in enabled that is True (except "union"), run one experiment for that method only.
+    for method_name, flag in enabled_cfg.items():
+        if method_name == "union" or not flag:
+            continue
+        fec_configs.append((f"fec_{method_name}", [method_name]))
+    # 2) If "union" is True in enabled, run one additional experiment using the union of methods listed in fec.sampling_methods.union.
+    if enabled_cfg.get("union", False):
+        union_list = CONFIG.get("fec.sampling_methods.union", [])
+        if union_list:
+            fec_configs.append((f"fec_union(" + "+".join(union_list) + ")", list(union_list)))
+
+    fec_results: Dict[str, Dict[float, pd.DataFrame]] = {}
+    fec_summaries: Dict[str, Dict[float, Dict[str, Any]]] = {}
+    used_fractions: List[float] = list(SAMPLE_FRACTIONS)
     all_individual_rows: List[pd.DataFrame] = []
     all_cache_event_rows: List[pd.DataFrame] = []
 
     if not baseline_individuals.empty:
+        baseline_individuals = baseline_individuals.copy()
+        baseline_individuals["mode"] = "baseline"
         all_individual_rows.append(baseline_individuals)
 
-    for frac in SAMPLE_FRACTIONS:
-        df_union, stats_union, union_individuals, cache_events_df = run_one_experiment(
-            "union_cache", X, y, frac, RANDOM_SEED + 1000
-        )
-        union_results[frac] = df_union
-        union_summaries[frac] = stats_union
-        union_hit_rates.append(stats_union.get("hit_rate", 0.0))
-        union_fake_rates.append(stats_union.get("fake_hit_rate", 0.0))
-        used_fractions.append(frac)
-        if not union_individuals.empty:
-            all_individual_rows.append(union_individuals)
-        if not cache_events_df.empty:
-            all_cache_event_rows.append(cache_events_df)
+    for method_label, method_list in fec_configs:
+        fec_results[method_label] = {}
+        fec_summaries[method_label] = {}
+        for frac in SAMPLE_FRACTIONS:
+            df_fec, stats_fec, fec_individuals, cache_events_df = run_one_experiment(
+                "union_cache", X, y, frac, RANDOM_SEED + 1000, fec_sampling_methods=method_list
+            )
+            fec_results[method_label][frac] = df_fec
+            fec_summaries[method_label][frac] = stats_fec
+            if not fec_individuals.empty:
+                fec_individuals = fec_individuals.copy()
+                fec_individuals["mode"] = method_label
+                all_individual_rows.append(fec_individuals)
+            if not cache_events_df.empty:
+                cache_events_df = cache_events_df.copy()
+                cache_events_df["sampling_mode"] = method_label
+                all_cache_event_rows.append(cache_events_df)
 
     # Save detailed per-individual CSV (run 1 only, to save disk space) into this experiment's folder
-    if all_individual_rows:
+    if CONFIG.get("output.save_individuals_csv", False) and all_individual_rows:
         all_individuals_df = pd.concat(all_individual_rows, ignore_index=True)
         if "run" in all_individuals_df.columns:
             all_individuals_df = all_individuals_df[all_individuals_df["run"] == 1].reset_index(drop=True)
@@ -524,10 +530,12 @@ def main() -> None:
             f"Saved cache-events (run, gen, phenotype, hit_count, fake_count, fitness, generation_time_sec) to {cache_csv_path}"
         )
 
-        # Per-(run, gen, sample_fraction) cache aggregation (each fraction = separate full evolution)
+        # Per-(run, gen, sample_fraction, sampling_mode) cache aggregation
         group_cols = ["run", "gen"]
         if "sample_fraction" in cache_events_combined.columns:
             group_cols.append("sample_fraction")
+        if "sampling_mode" in cache_events_combined.columns:
+            group_cols.append("sampling_mode")
         cache_agg = (
             cache_events_combined.groupby(group_cols, as_index=False)[
                 ["hit_count", "fake_count"]
@@ -575,96 +583,76 @@ def main() -> None:
         }
     )
 
-    # Derive a human-readable FEC mode label from config
-    enabled_methods_cfg = CONFIG.get("fec.sampling_methods.enabled", {})
-    if enabled_methods_cfg.get("union", False):
-        label_methods = CONFIG.get("fec.sampling_methods.union", UNION_METHODS)
-        fec_mode_label = "fec_union(" + "+".join(label_methods) + ")"
-    else:
-        enabled_non_union = [
-            m for m, flag in enabled_methods_cfg.items() if flag and m != "union"
-        ]
-        if enabled_non_union:
-            fec_mode_label = "fec_" + "+".join(enabled_non_union)
-        else:
-            fec_mode_label = "fec"
+    # One summary row per (method_label, fraction)
+    for method_label in fec_results:
+        for frac in used_fractions:
+            if frac not in fec_results[method_label]:
+                continue
+            df_fec = fec_results[method_label][frac]
+            stats_fec = fec_summaries[method_label].get(frac, {})
+            fec_time = stats_fec.get("total_time_mean")
+            fec_final_test = (
+                float(df_fec["fitness_test"].iloc[-1]) if "fitness_test" in df_fec else None
+            )
+            fec_accuracy = 1.0 - fec_final_test if fec_final_test is not None else None
+            speedup = None
+            if baseline_time and fec_time and fec_time > 0:
+                speedup = float(baseline_time / fec_time)
+            delta_acc = None
+            if fec_accuracy is not None and baseline_accuracy is not None:
+                delta_acc = fec_accuracy - baseline_accuracy
+            fec_hit_rate = float(stats_fec.get("hit_rate", 0.0) or 0.0)
+            fec_fake_hit_rate = float(stats_fec.get("fake_hit_rate", 0.0) or 0.0)
 
-    for frac in used_fractions:
-        df_union = union_results[frac]
-        stats_union = union_summaries.get(frac, {})
-        union_time = stats_union.get("total_time_mean")
-        union_final_test = (
-            float(df_union["fitness_test"].iloc[-1]) if "fitness_test" in df_union else None
-        )
-        union_accuracy = 1.0 - union_final_test if union_final_test is not None else None
-        speedup = None
-        if baseline_time and union_time and union_time > 0:
-            speedup = float(baseline_time / union_time)
-        delta_acc = None
-        if union_accuracy is not None and baseline_accuracy is not None:
-            delta_acc = union_accuracy - baseline_accuracy
-        union_hit_rate = float(stats_union.get("hit_rate", 0.0) or 0.0)
-        union_fake_hit_rate = float(stats_union.get("fake_hit_rate", 0.0) or 0.0)
+            fec_final_tests_raw = stats_fec.get("final_test_values")
+            fec_final_tests = (
+                np.asarray(fec_final_tests_raw, dtype=float)
+                if fec_final_tests_raw is not None
+                else np.array([])
+            )
+            p_value = None
+            significant = None
+            p_value_baseline_better = None
+            accuracy_comparable = None
+            test_name = None
+            if baseline_final_tests.size >= 2 and fec_final_tests.size >= 2:
+                try:
+                    _, p_val = stats.mannwhitneyu(
+                        baseline_final_tests,
+                        fec_final_tests,
+                        alternative="two-sided",
+                    )
+                    p_value = float(p_val)
+                    significant = bool(p_value < 0.05)
+                    _, p_one = stats.mannwhitneyu(
+                        baseline_final_tests,
+                        fec_final_tests,
+                        alternative="greater",
+                    )
+                    p_value_baseline_better = float(p_one)
+                    accuracy_comparable = p_value_baseline_better > 0.05
+                    test_name = "mannwhitneyu_two_sided"
+                except Exception:
+                    pass
 
-        # Statistical significance vs baseline on final test fitness (1 - accuracy, lower is better)
-        union_final_tests_raw = stats_union.get("final_test_values")
-        union_final_tests = (
-            np.asarray(union_final_tests_raw, dtype=float)
-            if union_final_tests_raw is not None
-            else np.array([])
-        )
-        p_value = None
-        significant = None
-        p_value_baseline_better = None
-        accuracy_comparable = None
-        test_name = None
-        # Use Mann-Whitney U when we have at least 2 runs per method
-        if baseline_final_tests.size >= 2 and union_final_tests.size >= 2:
-            try:
-                # Two-sided: is there any difference?
-                _, p_val = stats.mannwhitneyu(
-                    baseline_final_tests,
-                    union_final_tests,
-                    alternative="two-sided",
-                )
-                p_value = float(p_val)
-                significant = bool(p_value < 0.05)
-                # One-sided: is baseline significantly better (lower fitness) than FEC?
-                # alternative="greater" => baseline (1st) stochastically greater than FEC (2nd)
-                # (higher fitness = worse). So small p => baseline has worse fitness; large p => no evidence baseline is better => FEC comparable
-                _, p_one = stats.mannwhitneyu(
-                    baseline_final_tests,
-                    union_final_tests,
-                    alternative="greater",
-                )
-                p_value_baseline_better = float(p_one)
-                accuracy_comparable = p_value_baseline_better > 0.05
-                test_name = "mannwhitneyu_two_sided"
-            except Exception:
-                p_value = None
-                significant = None
-                p_value_baseline_better = None
-                accuracy_comparable = None
-                test_name = None
-
-        summary_rows.append(
-            {
-                "mode": fec_mode_label,
-                "sample_fraction": frac,
-                "final_test_fitness_mean": union_final_test,
-                "accuracy": union_accuracy,
-                "total_time_mean_sec": union_time,
-                "speedup_vs_baseline": speedup,
-                "hit_rate": union_hit_rate,
-                "fake_hit_rate": union_fake_hit_rate,
-                "delta_accuracy_vs_baseline": delta_acc,
-                "p_value_vs_baseline": p_value,
-                "significant_vs_baseline_0.05": significant,
-                "p_value_baseline_better": p_value_baseline_better,
-                "accuracy_comparable": accuracy_comparable,
-                "test_name": test_name,
-            }
-        )
+            summary_rows.append(
+                {
+                    "mode": method_label,
+                    "sample_fraction": frac,
+                    "final_test_fitness_mean": fec_final_test,
+                    "accuracy": fec_accuracy,
+                    "total_time_mean_sec": fec_time,
+                    "speedup_vs_baseline": speedup,
+                    "hit_rate": fec_hit_rate,
+                    "fake_hit_rate": fec_fake_hit_rate,
+                    "delta_accuracy_vs_baseline": delta_acc,
+                    "p_value_vs_baseline": p_value,
+                    "significant_vs_baseline_0.05": significant,
+                    "p_value_baseline_better": p_value_baseline_better,
+                    "accuracy_comparable": accuracy_comparable,
+                    "test_name": test_name,
+                }
+            )
 
     summary_df = pd.DataFrame(summary_rows)
     summary_path = experiment_dir / "fec_vs_baseline_summary.csv"
@@ -674,27 +662,8 @@ def main() -> None:
     # Collect all charts into a single HTML string
     sections: List[str] = []
 
-    # 1) For each sample fraction: compare baseline vs FEC (training + testing)
+    # 1) For each sample fraction: compare baseline vs all FEC methods (training + testing)
     for frac in used_fractions:
-        df_union_frac = union_results[frac]
-        enabled_methods_cfg = CONFIG.get("fec.sampling_methods.enabled", {})
-        if enabled_methods_cfg.get("union", False):
-            label_methods = CONFIG.get("fec.sampling_methods.union", UNION_METHODS)
-            union_label_base = "FEC (union: " + "+".join(label_methods) + ")"
-        else:
-            # Use whichever individual sampling methods are enabled (excluding 'union')
-            enabled_non_union = [
-                m for m, flag in enabled_methods_cfg.items() if flag and m != "union"
-            ]
-            if enabled_non_union:
-                union_label_base = "FEC (" + "+".join(enabled_non_union) + ")"
-            else:
-                # Fallback to union methods list
-                union_label_base = "FEC (union: " + "+".join(UNION_METHODS) + ")"
-        stats_union = union_summaries.get(frac, {})
-        gen_seq = df_union_frac["gen"]
-
-        # Training
         fig_train = go.Figure()
         fig_train.add_trace(
             go.Scatter(
@@ -702,36 +671,31 @@ def main() -> None:
                 y=baseline_df["avg"],
                 mode="lines+markers",
                 name="Baseline (no FEC)",
-                error_y=dict(
-                    type="data",
-                    array=baseline_df.get("avg_std"),
-                    visible=True,
-                ),
+                error_y=dict(type="data", array=baseline_df.get("avg_std"), visible=True),
             )
         )
-        fig_train.add_trace(
-            go.Scatter(
-                x=df_union_frac["gen"],
-                y=df_union_frac["avg"],
-                mode="lines+markers",
-                name=f"{union_label_base}, frac={frac:.0%}",
-                error_y=dict(
-                    type="data",
-                    array=df_union_frac.get("avg_std"),
-                    visible=True,
-                ),
+        for method_label in fec_results:
+            if frac not in fec_results[method_label]:
+                continue
+            df_fec = fec_results[method_label][frac]
+            fig_train.add_trace(
+                go.Scatter(
+                    x=df_fec["gen"],
+                    y=df_fec["avg"],
+                    mode="lines+markers",
+                    name=f"{method_label}, frac={frac:.0%}",
+                    error_y=dict(type="data", array=df_fec.get("avg_std"), visible=True),
+                )
             )
-        )
         fig_train.update_layout(
-            title=f"Training Fitness (Average) vs Generation (frac={frac:.0%})",
+            title=f"Training MAE over generations ({frac:.0%} sample)",
             xaxis_title="Generation",
-            yaxis_title="Fitness (1 - accuracy, lower is better)",
+            yaxis_title="MAE (classification error, lower is better)",
             template="plotly_white",
             hovermode="x unified",
         )
         sections.append(pio.to_html(fig_train, include_plotlyjs="cdn", full_html=False))
 
-        # Testing
         fig_test = go.Figure()
         fig_test.add_trace(
             go.Scatter(
@@ -739,55 +703,66 @@ def main() -> None:
                 y=baseline_df["fitness_test"],
                 mode="lines+markers",
                 name="Baseline (no FEC)",
-                error_y=dict(
-                    type="data",
-                    array=baseline_df.get("fitness_test_std"),
-                    visible=True,
-                ),
+                error_y=dict(type="data", array=baseline_df.get("fitness_test_std"), visible=True),
             )
         )
-        fig_test.add_trace(
-            go.Scatter(
-                x=df_union_frac["gen"],
-                y=df_union_frac["fitness_test"],
-                mode="lines+markers",
-                name=f"{union_label_base}, frac={frac:.0%}",
-                error_y=dict(
-                    type="data",
-                    array=df_union_frac.get("fitness_test_std"),
-                    visible=True,
-                ),
+        for method_label in fec_results:
+            if frac not in fec_results[method_label]:
+                continue
+            df_fec = fec_results[method_label][frac]
+            fig_test.add_trace(
+                go.Scatter(
+                    x=df_fec["gen"],
+                    y=df_fec["fitness_test"],
+                    mode="lines+markers",
+                    name=f"{method_label}, frac={frac:.0%}",
+                    error_y=dict(type="data", array=df_fec.get("fitness_test_std"), visible=True),
+                )
             )
-        )
         fig_test.update_layout(
-            title=f"Testing Fitness vs Generation (frac={frac:.0%})",
+            title=f"Test MAE over generations ({frac:.0%} sample)",
             xaxis_title="Generation",
-            yaxis_title="Fitness (1 - accuracy, lower is better)",
+            yaxis_title="MAE (classification error, lower is better)",
             template="plotly_white",
             hovermode="x unified",
         )
         sections.append(pio.to_html(fig_test, include_plotlyjs="cdn", full_html=False))
 
-        # Hit-rate vs generation (union only, with STD across runs)
-        gen_hit_mean = stats_union.get("gen_hit_rate_mean")
-        gen_hit_std = stats_union.get("gen_hit_rate_std")
-        if gen_hit_mean is not None:
-            fig_hit_gen = go.Figure()
-            fig_hit_gen.add_trace(
-                go.Scatter(
-                    x=gen_seq,
-                    y=gen_hit_mean,
-                    mode="lines+markers",
-                    name=f"{union_label_base}, frac={frac:.0%}",
-                    error_y=dict(
-                        type="data",
-                        array=gen_hit_std,
-                        visible=True,
-                    ),
+        # Hit rate and fake-hit rate vs generation: one trace per method for this fraction
+        fig_hit_gen = go.Figure()
+        fig_fake_gen = go.Figure()
+        for method_label in fec_results:
+            if frac not in fec_results[method_label]:
+                continue
+            stats_fec = fec_summaries[method_label].get(frac, {})
+            gen_hit_mean = stats_fec.get("gen_hit_rate_mean")
+            gen_hit_std = stats_fec.get("gen_hit_rate_std")
+            gen_fake_mean = stats_fec.get("gen_fake_hit_rate_mean")
+            gen_fake_std = stats_fec.get("gen_fake_hit_rate_std")
+            gen_seq = fec_results[method_label][frac]["gen"]
+            if gen_hit_mean is not None:
+                fig_hit_gen.add_trace(
+                    go.Scatter(
+                        x=gen_seq,
+                        y=gen_hit_mean,
+                        mode="lines+markers",
+                        name=f"{method_label}, frac={frac:.0%}",
+                        error_y=dict(type="data", array=gen_hit_std or [], visible=True),
+                    )
                 )
-            )
+            if gen_fake_mean is not None:
+                fig_fake_gen.add_trace(
+                    go.Scatter(
+                        x=gen_seq,
+                        y=gen_fake_mean,
+                        mode="lines+markers",
+                        name=f"{method_label}, frac={frac:.0%}",
+                        error_y=dict(type="data", array=gen_fake_std or [], visible=True),
+                    )
+                )
+        if len(fig_hit_gen.data) > 0:
             fig_hit_gen.update_layout(
-                title=f"Cache Hit Rate vs Generation ({union_label_base}, frac={frac:.0%})",
+                title=f"Hit rate over generations ({frac:.0%} sample)",
                 xaxis_title="Generation",
                 yaxis_title="Hit rate",
                 yaxis_tickformat=".0%",
@@ -795,30 +770,10 @@ def main() -> None:
                 hovermode="x unified",
                 showlegend=True,
             )
-            sections.append(
-                pio.to_html(fig_hit_gen, include_plotlyjs="cdn", full_html=False)
-            )
-
-        # Fake-hit vs generation (union only, with STD across runs)
-        gen_fake_mean = stats_union.get("gen_fake_hit_rate_mean")
-        gen_fake_std = stats_union.get("gen_fake_hit_rate_std")
-        if gen_fake_mean is not None:
-            fig_fake_gen = go.Figure()
-            fig_fake_gen.add_trace(
-                go.Scatter(
-                    x=gen_seq,
-                    y=gen_fake_mean,
-                    mode="lines+markers",
-                    name=f"{union_label_base}, frac={frac:.0%}",
-                    error_y=dict(
-                        type="data",
-                        array=gen_fake_std,
-                        visible=True,
-                    ),
-                )
-            )
+            sections.append(pio.to_html(fig_hit_gen, include_plotlyjs="cdn", full_html=False))
+        if len(fig_fake_gen.data) > 0:
             fig_fake_gen.update_layout(
-                title=f"Cache Fake-Hit Rate vs Generation ({union_label_base}, frac={frac:.0%})",
+                title=f"Fake-hit rate over generations ({frac:.0%} sample)",
                 xaxis_title="Generation",
                 yaxis_title="Fake-hit rate",
                 yaxis_tickformat=".0%",
@@ -826,16 +781,11 @@ def main() -> None:
                 hovermode="x unified",
                 showlegend=True,
             )
-            sections.append(
-                pio.to_html(fig_fake_gen, include_plotlyjs="cdn", full_html=False)
-            )
+            sections.append(pio.to_html(fig_fake_gen, include_plotlyjs="cdn", full_html=False))
 
-    # 2) One chart: final-generation testing fitness vs sample fraction
+    # 2) Final test MAE vs sample fraction: baseline + one trace per sampling method
     baseline_final_test = float(baseline_df["fitness_test"].iloc[-1])
-    union_final_tests = [float(union_results[f]["fitness_test"].iloc[-1]) for f in used_fractions]
-
     fig_final = go.Figure()
-    # Baseline as horizontal reference line
     fig_final.add_trace(
         go.Scatter(
             x=used_fractions,
@@ -844,48 +794,42 @@ def main() -> None:
             name="Baseline (final test)",
         )
     )
-    # Build label base consistent with sampling config
-    enabled_methods_cfg = CONFIG.get("fec.sampling_methods.enabled", {})
-    if enabled_methods_cfg.get("union", False):
-        label_methods = CONFIG.get("fec.sampling_methods.union", UNION_METHODS)
-        fec_label_base = "FEC (union: " + "+".join(label_methods) + ")"
-    else:
-        enabled_non_union = [
-            m for m, flag in enabled_methods_cfg.items() if flag and m != "union"
-        ]
-        if enabled_non_union:
-            fec_label_base = "FEC (" + "+".join(enabled_non_union) + ")"
-        else:
-            fec_label_base = "FEC (union: " + "+".join(UNION_METHODS) + ")"
-    fig_final.add_trace(
-        go.Scatter(
-            x=used_fractions,
-            y=union_final_tests,
-            mode="lines+markers",
-            name=f"{fec_label_base} (final test)",
+    for method_label in fec_results:
+        y_vals = []
+        for f in used_fractions:
+            if f in fec_results[method_label] and "fitness_test" in fec_results[method_label][f]:
+                y_vals.append(float(fec_results[method_label][f]["fitness_test"].iloc[-1]))
+            else:
+                y_vals.append(float("nan"))
+        fig_final.add_trace(
+            go.Scatter(
+                x=used_fractions,
+                y=y_vals,
+                mode="lines+markers",
+                name=method_label,
+            )
         )
-    )
     fig_final.update_layout(
-        title="Final Testing Fitness vs Sample Fraction (Baseline vs Union)",
+        title="Test MAE across sample fractions",
         xaxis_title="Sample fraction",
-        yaxis_title="Final test fitness (1 - accuracy, lower is better)",
+        yaxis_title="Final test MAE (classification error, lower is better)",
         template="plotly_white",
         hovermode="x unified",
     )
     sections.append(pio.to_html(fig_final, include_plotlyjs="cdn", full_html=False))
 
-    # 3) Hit rate vs sample fraction (union only)
+    # 3) Hit rate vs sample fraction: one trace per sampling method
     fig_hit = go.Figure()
-    fig_hit.add_trace(
-        go.Scatter(
-            x=used_fractions,
-            y=union_hit_rates,
-            mode="lines+markers",
-            name="Hit rate",
+    for method_label in fec_results:
+        hit_rates = [
+            float(fec_summaries[method_label].get(f, {}).get("hit_rate", 0.0) or 0.0)
+            for f in used_fractions
+        ]
+        fig_hit.add_trace(
+            go.Scatter(x=used_fractions, y=hit_rates, mode="lines+markers", name=method_label)
         )
-    )
     fig_hit.update_layout(
-        title="Union Cache Hit Rate vs Sample Fraction",
+        title="Hit rate across sample fractions",
         xaxis_title="Sample fraction",
         yaxis_title="Hit rate",
         yaxis_tickformat=".0%",
@@ -895,18 +839,18 @@ def main() -> None:
     )
     sections.append(pio.to_html(fig_hit, include_plotlyjs="cdn", full_html=False))
 
-    # 4) Fake-hit rate vs sample fraction (union only)
+    # 4) Fake-hit rate vs sample fraction: one trace per sampling method
     fig_fake = go.Figure()
-    fig_fake.add_trace(
-        go.Scatter(
-            x=used_fractions,
-            y=union_fake_rates,
-            mode="lines+markers",
-            name="Fake-hit rate",
+    for method_label in fec_results:
+        fake_rates = [
+            float(fec_summaries[method_label].get(f, {}).get("fake_hit_rate", 0.0) or 0.0)
+            for f in used_fractions
+        ]
+        fig_fake.add_trace(
+            go.Scatter(x=used_fractions, y=fake_rates, mode="lines+markers", name=method_label)
         )
-    )
     fig_fake.update_layout(
-        title="Union Cache Fake-Hit Rate vs Sample Fraction",
+        title="Fake-hit rate across sample fractions",
         xaxis_title="Sample fraction",
         yaxis_title="Fake-hit rate",
         yaxis_tickformat=".0%",
