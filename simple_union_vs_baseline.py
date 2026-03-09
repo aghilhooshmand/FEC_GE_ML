@@ -61,6 +61,18 @@ from config import CONFIG
 # Simple configuration (all from CONFIG)
 # ---------------------------------------------------------------------------
 
+def _fec_show_behaviour_without_structural() -> bool:
+    return bool(CONFIG.get("fec.modes.fec_enabled_behaviour_without_structural", True))
+
+
+def _fec_show_structural_only() -> bool:
+    return bool(CONFIG.get("fec.modes.fec_enabled_structural_only", True))
+
+
+def _fec_show_total() -> bool:
+    return bool(CONFIG.get("fec.modes.fec_enabled_total", True))
+
+
 GRAMMAR_FILE = Path("grammars") / CONFIG["grammar.file"]
 
 POP_SIZE = CONFIG["evolution.population"]
@@ -141,7 +153,7 @@ def run_one_experiment(
     sample_fraction: float | None,
     rng_seed: int,
     fec_sampling_methods: List[str] | None = None,
-) -> Tuple[pd.DataFrame, Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+) -> Tuple[pd.DataFrame, Dict[str, Any], pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Run one multi-run experiment for:
       mode = "baseline"            → no cache, full dataset
@@ -160,7 +172,7 @@ def run_one_experiment(
 
     all_logbooks: List[tools.Logbook] = []
     union_cache_stats_all_runs: List[Dict[str, Any]] = []
-    tracker = PhenotypeTracker()
+    tracker = PhenotypeTracker(track_individuals=bool(CONFIG.get("output.track_individuals", True)))
     cache_event_rows: List[Dict[str, Any]] = []
 
     for run_idx in range(N_RUNS):
@@ -202,6 +214,7 @@ def run_one_experiment(
             # Real FEC-based fitness using project utilities (same behaviour as main code)
             run_cache = FECCache()
             run_cache.clear()
+            run_cache.record_detailed_events = bool(CONFIG.get("fec.record_detailed_events", True))
             eval_fn = create_fitness_eval(
                 centroid_X=X_sample,
                 centroid_y=y_sample,
@@ -210,7 +223,7 @@ def run_one_experiment(
                 fec_enabled=True,
                 evaluate_fake_hits=bool(CONFIG.get("fec.evaluate_fake_hits", False)),
                 fake_hit_threshold=float(CONFIG.get("fec.fake_hit_threshold", 1e-6)),
-                structural_similarity=bool(CONFIG.get("fec.structural_similarity", True)),
+                structural_similarity=bool(CONFIG.get("fec.structural_similarity", False)),
                 behavior_similarity=bool(CONFIG.get("fec.behavior_similarity", True)),
                 operators=ops,
                 X_test_ref=X_test,
@@ -292,6 +305,24 @@ def run_one_experiment(
                         row["generation_time_sec"] = None
                     cache_event_rows.append(row)
 
+    # Per-run, per-generation logbook table (one row per run per gen) for export
+    logbook_columns = [
+        "gen", "invalid", "avg", "std", "min", "max", "fitness_test",
+        "best_ind_length", "avg_length", "best_ind_nodes", "avg_nodes",
+        "best_ind_depth", "avg_depth", "avg_used_codons", "best_ind_used_codons",
+        "selection_time", "generation_time",
+    ]
+    logbook_rows: List[Dict[str, Any]] = []
+    for run_idx, lb in enumerate(all_logbooks):
+        for rec in list(lb):
+            row: Dict[str, Any] = {"run": run_idx + 1}
+            for k in logbook_columns:
+                row[k] = rec.get(k, float("nan"))
+            logbook_rows.append(row)
+    logbook_df = pd.DataFrame(logbook_rows)
+    if not logbook_df.empty:
+        logbook_df = logbook_df[["run"] + [c for c in logbook_columns if c in logbook_df.columns]]
+
     # Aggregate per-generation stats across runs
     # All logbooks share the same gens; we focus on avg, min, max, fitness_test
     gen = np.array(all_logbooks[0].select("gen"))
@@ -333,7 +364,6 @@ def run_one_experiment(
             fake_rates.append(float(st.get("fake_hit_rate", 0.0)))
         union_summary["hit_rate"] = float(np.mean(hit_rates)) if hit_rates else 0.0
         union_summary["fake_hit_rate"] = float(np.mean(fake_rates)) if fake_rates else 0.0
-
         # Per-generation hit/fake-hit rates across runs (for plotting)
         gen_hits_list = [np.asarray(st.get("gen_hits", []), dtype=float) for st in union_cache_stats_all_runs]
         gen_misses_list = [np.asarray(st.get("gen_misses", []), dtype=float) for st in union_cache_stats_all_runs]
@@ -377,6 +407,54 @@ def run_one_experiment(
         union_summary["gen_hit_rate_std"] = hit_rate_gen_std
         union_summary["gen_fake_hit_rate_mean"] = fake_rate_gen_mean
         union_summary["gen_fake_hit_rate_std"] = fake_rate_gen_std
+
+        # Hit breakdown: rates (per lookups) = behavioural (includes structural), behavioural without structural, just structural
+        gen_just_struct = [np.asarray(st.get("gen_hits_just_structural", []), dtype=float) for st in union_cache_stats_all_runs]
+        gen_behav_no_struct = [np.asarray(st.get("gen_hits_behavioural_without_structural", []), dtype=float) for st in union_cache_stats_all_runs]
+        rate_behav_or_both_mean: List[float] = []
+        rate_behav_or_both_std: List[float] = []
+        rate_behav_no_struct_mean: List[float] = []
+        rate_behav_no_struct_std: List[float] = []
+        rate_just_struct_mean: List[float] = []
+        rate_just_struct_std: List[float] = []
+        for i in range(max_len):
+            per_run_behav: List[float] = []
+            per_run_behav_no: List[float] = []
+            per_run_just: List[float] = []
+            for h_arr, m_arr, j_arr, b_arr in zip(gen_hits_list, gen_misses_list, gen_just_struct, gen_behav_no_struct):
+                if i >= len(h_arr) or i >= len(m_arr):
+                    continue
+                lookups = float(h_arr[i]) + float(m_arr[i])
+                if lookups <= 0:
+                    continue
+                per_run_behav.append(float(h_arr[i]) / lookups)
+                if i < len(j_arr):
+                    per_run_just.append(float(j_arr[i]) / lookups)
+                if i < len(b_arr):
+                    per_run_behav_no.append(float(b_arr[i]) / lookups)
+            rate_behav_or_both_mean.append(float(np.mean(per_run_behav)) if per_run_behav else float("nan"))
+            rate_behav_or_both_std.append(float(np.std(per_run_behav, ddof=0)) if per_run_behav else float("nan"))
+            rate_behav_no_struct_mean.append(float(np.mean(per_run_behav_no)) if per_run_behav_no else float("nan"))
+            rate_behav_no_struct_std.append(float(np.std(per_run_behav_no, ddof=0)) if per_run_behav_no else float("nan"))
+            rate_just_struct_mean.append(float(np.mean(per_run_just)) if per_run_just else float("nan"))
+            rate_just_struct_std.append(float(np.std(per_run_just, ddof=0)) if per_run_just else float("nan"))
+        union_summary["gen_rate_behavioural_or_both_mean"] = rate_behav_or_both_mean
+        union_summary["gen_rate_behavioural_or_both_std"] = rate_behav_or_both_std
+        union_summary["gen_rate_behavioural_without_structural_mean"] = rate_behav_no_struct_mean
+        union_summary["gen_rate_behavioural_without_structural_std"] = rate_behav_no_struct_std
+        union_summary["gen_rate_just_structural_mean"] = rate_just_struct_mean
+        union_summary["gen_rate_just_structural_std"] = rate_just_struct_std
+
+        # Scalar rates for across-fractions chart
+        total_hits = sum(st.get("hits", 0) for st in union_cache_stats_all_runs)
+        total_misses = sum(st.get("misses", 0) for st in union_cache_stats_all_runs)
+        total_lookups = total_hits + total_misses
+        if total_lookups > 0:
+            j = sum(st.get("hits_just_structural", 0) for st in union_cache_stats_all_runs)
+            b = sum(st.get("hits_behavioural_without_structural", 0) for st in union_cache_stats_all_runs)
+            union_summary["rate_behavioural_or_both"] = total_hits / total_lookups
+            union_summary["rate_behavioural_without_structural"] = b / total_lookups
+            union_summary["rate_just_structural"] = j / total_lookups
 
     # Runtime stats (both baseline and union-cache)
     run_total_times: List[float] = []
@@ -443,7 +521,7 @@ def run_one_experiment(
         if mode == "union_cache" and sample_fraction is not None:
             cache_events_df["sample_fraction"] = sample_fraction
 
-    return df, union_summary, individuals_df, cache_events_df
+    return df, union_summary, individuals_df, cache_events_df, logbook_df
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +542,7 @@ def main() -> None:
     X, y = util_load_dataset(CONFIG)
 
     # Baseline: full dataset, no cache
-    baseline_df, baseline_summary, baseline_individuals, _ = run_one_experiment(
+    baseline_df, baseline_summary, baseline_individuals, _, baseline_logbook_df = run_one_experiment(
         "baseline", X, y, None, RANDOM_SEED
     )
 
@@ -487,6 +565,8 @@ def main() -> None:
     used_fractions: List[float] = list(SAMPLE_FRACTIONS)
     all_individual_rows: List[pd.DataFrame] = []
     all_cache_event_rows: List[pd.DataFrame] = []
+    all_logbook_dfs: List[pd.DataFrame] = []
+    min_fraction = min(SAMPLE_FRACTIONS)  # save cache_events only for smallest fraction to limit file size
 
     if not baseline_individuals.empty:
         baseline_individuals = baseline_individuals.copy()
@@ -497,7 +577,7 @@ def main() -> None:
         fec_results[method_label] = {}
         fec_summaries[method_label] = {}
         for frac in SAMPLE_FRACTIONS:
-            df_fec, stats_fec, fec_individuals, cache_events_df = run_one_experiment(
+            df_fec, stats_fec, fec_individuals, cache_events_df, logbook_df = run_one_experiment(
                 "union_cache", X, y, frac, RANDOM_SEED + 1000, fec_sampling_methods=method_list
             )
             fec_results[method_label][frac] = df_fec
@@ -506,10 +586,32 @@ def main() -> None:
                 fec_individuals = fec_individuals.copy()
                 fec_individuals["mode"] = method_label
                 all_individual_rows.append(fec_individuals)
-            if not cache_events_df.empty:
+            # Only save cache events for the minimum (smallest) fraction to keep file size down
+            if frac == min_fraction and not cache_events_df.empty:
                 cache_events_df = cache_events_df.copy()
                 cache_events_df["sampling_mode"] = method_label
                 all_cache_event_rows.append(cache_events_df)
+            if not logbook_df.empty:
+                logbook_df = logbook_df.copy()
+                logbook_df["mode"] = method_label
+                logbook_df["sample_fraction"] = frac
+                all_logbook_dfs.append(logbook_df)
+
+    # One CSV: per-run, per-generation stats (gen, invalid, avg, std, min, max, fitness_test, best_ind_*, selection_time, generation_time) for baseline + all FEC experiments
+    if not baseline_logbook_df.empty:
+        baseline_logbook_df = baseline_logbook_df.copy()
+        baseline_logbook_df["mode"] = "baseline"
+        baseline_logbook_df["sample_fraction"] = 1.0
+        all_logbook_dfs.insert(0, baseline_logbook_df)
+    if all_logbook_dfs:
+        combined_logbook = pd.concat(all_logbook_dfs, ignore_index=True)
+        # Column order: mode, sample_fraction, run, gen, then the rest
+        lead_cols = ["mode", "sample_fraction", "run", "gen"]
+        rest = [c for c in combined_logbook.columns if c not in lead_cols]
+        combined_logbook = combined_logbook[lead_cols + rest]
+        logbook_csv_path = experiment_dir / "generation_stats.csv"
+        combined_logbook.to_csv(logbook_csv_path, index=False)
+        print(f"Saved per-run per-generation stats (gen, invalid, avg, std, min, max, fitness_test, best_ind_*, ...) to {logbook_csv_path}")
 
     # Save detailed per-individual CSV (run 1 only, to save disk space) into this experiment's folder
     if CONFIG.get("output.save_individuals_csv", False) and all_individual_rows:
@@ -520,14 +622,14 @@ def main() -> None:
         all_individuals_df.to_csv(individuals_csv_path, index=False)
         print(f"Saved per-individual evolution + cache details (run 1 only) to {individuals_csv_path}")
 
-    # Save cache-events CSV into this experiment's folder
+    # Save cache-events CSV only for the minimum fraction (to limit file size)
     cache_events_combined = None
     if all_cache_event_rows:
         cache_events_combined = pd.concat(all_cache_event_rows, ignore_index=True)
         cache_csv_path = experiment_dir / "cache_events.csv"
         cache_events_combined.to_csv(cache_csv_path, index=False)
         print(
-            f"Saved cache-events (run, gen, phenotype, hit_count, fake_count, fitness, generation_time_sec) to {cache_csv_path}"
+            f"Saved cache-events (frac={min_fraction:.0%} only; run, gen, phenotype, hit_count, fake_count, fitness, generation_time_sec) to {cache_csv_path}"
         )
 
         # Per-(run, gen, sample_fraction, sampling_mode) cache aggregation
@@ -728,28 +830,53 @@ def main() -> None:
         )
         sections.append(pio.to_html(fig_test, include_plotlyjs="cdn", full_html=False))
 
-        # Hit rate and fake-hit rate vs generation: one trace per method for this fraction
+        # Hit rate vs generation: add series only when corresponding fec.modes flag is True
         fig_hit_gen = go.Figure()
         fig_fake_gen = go.Figure()
+        show_total = _fec_show_total()
+        show_behav_no_struct = _fec_show_behaviour_without_structural()
+        show_just_struct = _fec_show_structural_only()
         for method_label in fec_results:
             if frac not in fec_results[method_label]:
                 continue
             stats_fec = fec_summaries[method_label].get(frac, {})
-            gen_hit_mean = stats_fec.get("gen_hit_rate_mean")
-            gen_hit_std = stats_fec.get("gen_hit_rate_std")
             gen_fake_mean = stats_fec.get("gen_fake_hit_rate_mean")
             gen_fake_std = stats_fec.get("gen_fake_hit_rate_std")
             gen_seq = fec_results[method_label][frac]["gen"]
-            if gen_hit_mean is not None:
-                fig_hit_gen.add_trace(
-                    go.Scatter(
-                        x=gen_seq,
-                        y=gen_hit_mean,
-                        mode="lines+markers",
-                        name=f"{method_label}, frac={frac:.0%}",
-                        error_y=dict(type="data", array=gen_hit_std or [], visible=True),
+            r_behav = stats_fec.get("gen_rate_behavioural_or_both_mean")
+            r_behav_no = stats_fec.get("gen_rate_behavioural_without_structural_mean")
+            r_just = stats_fec.get("gen_rate_just_structural_mean")
+            if r_behav is not None:
+                if show_total:
+                    fig_hit_gen.add_trace(
+                        go.Scatter(
+                            x=gen_seq,
+                            y=r_behav,
+                            mode="lines+markers",
+                            name=f"{method_label} (behavioural), frac={frac:.0%}",
+                            error_y=dict(type="data", array=stats_fec.get("gen_rate_behavioural_or_both_std") or [], visible=True),
+                        )
                     )
-                )
+                if show_behav_no_struct:
+                    fig_hit_gen.add_trace(
+                        go.Scatter(
+                            x=gen_seq,
+                            y=r_behav_no if r_behav_no is not None else [float("nan")] * len(gen_seq),
+                            mode="lines+markers",
+                            name=f"{method_label} (behavioural without structural), frac={frac:.0%}",
+                            error_y=dict(type="data", array=stats_fec.get("gen_rate_behavioural_without_structural_std") or [], visible=True),
+                        )
+                    )
+                if show_just_struct:
+                    fig_hit_gen.add_trace(
+                        go.Scatter(
+                            x=gen_seq,
+                            y=r_just if r_just is not None else [float("nan")] * len(gen_seq),
+                            mode="lines+markers",
+                            name=f"{method_label} (just structural), frac={frac:.0%}",
+                            error_y=dict(type="data", array=stats_fec.get("gen_rate_just_structural_std") or [], visible=True),
+                        )
+                    )
             if gen_fake_mean is not None:
                 fig_fake_gen.add_trace(
                     go.Scatter(
@@ -761,16 +888,50 @@ def main() -> None:
                     )
                 )
         if len(fig_hit_gen.data) > 0:
+            ytitle = "Hit rate (per lookups): behavioural | behav without struct | just structural"
             fig_hit_gen.update_layout(
                 title=f"Hit rate over generations ({frac:.0%} sample)",
                 xaxis_title="Generation",
-                yaxis_title="Hit rate",
+                yaxis_title=ytitle,
                 yaxis_tickformat=".0%",
                 template="plotly_white",
                 hovermode="x unified",
                 showlegend=True,
             )
             sections.append(pio.to_html(fig_hit_gen, include_plotlyjs="cdn", full_html=False))
+
+        # Hit rate (overall: hit vs miss) over generations — only when fec_enabled_total
+        fig_hit_overall_gen = go.Figure()
+        if show_total:
+            for method_label in fec_results:
+                if frac not in fec_results[method_label]:
+                    continue
+                stats_fec = fec_summaries[method_label].get(frac, {})
+                gen_hit_mean = stats_fec.get("gen_hit_rate_mean")
+                gen_hit_std = stats_fec.get("gen_hit_rate_std")
+                gen_seq = fec_results[method_label][frac]["gen"]
+                if gen_hit_mean is not None:
+                    fig_hit_overall_gen.add_trace(
+                        go.Scatter(
+                            x=gen_seq,
+                            y=gen_hit_mean,
+                            mode="lines+markers",
+                            name=f"{method_label}, frac={frac:.0%}",
+                            error_y=dict(type="data", array=gen_hit_std or [], visible=True),
+                        )
+                    )
+        if len(fig_hit_overall_gen.data) > 0:
+            fig_hit_overall_gen.update_layout(
+                title=f"Hit rate (overall: hit vs miss) over generations ({frac:.0%} sample)",
+                xaxis_title="Generation",
+                yaxis_title="Hit rate (hits / lookups)",
+                yaxis_tickformat=".0%",
+                template="plotly_white",
+                hovermode="x unified",
+                showlegend=True,
+            )
+            sections.append(pio.to_html(fig_hit_overall_gen, include_plotlyjs="cdn", full_html=False))
+
         if len(fig_fake_gen.data) > 0:
             fig_fake_gen.update_layout(
                 title=f"Fake-hit rate over generations ({frac:.0%} sample)",
@@ -818,26 +979,56 @@ def main() -> None:
     )
     sections.append(pio.to_html(fig_final, include_plotlyjs="cdn", full_html=False))
 
-    # 3) Hit rate vs sample fraction: one trace per sampling method
+    # 3) Hit rate vs sample fraction (breakdown): only series whose fec.modes flag is True
+    show_total_g = _fec_show_total()
+    show_behav_no_struct_g = _fec_show_behaviour_without_structural()
+    show_just_struct_g = _fec_show_structural_only()
     fig_hit = go.Figure()
     for method_label in fec_results:
-        hit_rates = [
-            float(fec_summaries[method_label].get(f, {}).get("hit_rate", 0.0) or 0.0)
-            for f in used_fractions
-        ]
-        fig_hit.add_trace(
-            go.Scatter(x=used_fractions, y=hit_rates, mode="lines+markers", name=method_label)
+        rate_behav = [float(fec_summaries[method_label].get(f, {}).get("rate_behavioural_or_both", 0.0) or 0.0) for f in used_fractions]
+        rate_behav_no = [float(fec_summaries[method_label].get(f, {}).get("rate_behavioural_without_structural", 0.0) or 0.0) for f in used_fractions]
+        rate_just = [float(fec_summaries[method_label].get(f, {}).get("rate_just_structural", 0.0) or 0.0) for f in used_fractions]
+        if show_total_g:
+            fig_hit.add_trace(go.Scatter(x=used_fractions, y=rate_behav, mode="lines+markers", name=f"{method_label} (behavioural)"))
+        if show_behav_no_struct_g:
+            fig_hit.add_trace(go.Scatter(x=used_fractions, y=rate_behav_no, mode="lines+markers", name=f"{method_label} (behavioural without structural)"))
+        if show_just_struct_g:
+            fig_hit.add_trace(go.Scatter(x=used_fractions, y=rate_just, mode="lines+markers", name=f"{method_label} (just structural)"))
+    if len(fig_hit.data) > 0:
+        ytitle_hit = "Hit rate (per lookups): behavioural | behav without struct | just structural"
+        fig_hit.update_layout(
+            title="Hit rate across sample fractions",
+            xaxis_title="Sample fraction",
+            yaxis_title=ytitle_hit,
+            yaxis_tickformat=".0%",
+            template="plotly_white",
+            hovermode="x unified",
+            showlegend=True,
         )
-    fig_hit.update_layout(
-        title="Hit rate across sample fractions",
-        xaxis_title="Sample fraction",
-        yaxis_title="Hit rate",
-        yaxis_tickformat=".0%",
-        template="plotly_white",
-        hovermode="x unified",
-        showlegend=True,
-    )
-    sections.append(pio.to_html(fig_hit, include_plotlyjs="cdn", full_html=False))
+        sections.append(pio.to_html(fig_hit, include_plotlyjs="cdn", full_html=False))
+
+    # 3b) Hit rate (overall: hit vs miss) across sample fractions — only when fec_enabled_total
+    fig_hit_overall = go.Figure()
+    if show_total_g:
+        for method_label in fec_results:
+            hit_rates = [
+                float(fec_summaries[method_label].get(f, {}).get("hit_rate", 0.0) or 0.0)
+                for f in used_fractions
+            ]
+            fig_hit_overall.add_trace(
+                go.Scatter(x=used_fractions, y=hit_rates, mode="lines+markers", name=method_label)
+            )
+    if len(fig_hit_overall.data) > 0:
+        fig_hit_overall.update_layout(
+            title="Hit rate (overall: hit vs miss) across sample fractions",
+            xaxis_title="Sample fraction",
+            yaxis_title="Hit rate (hits / lookups)",
+            yaxis_tickformat=".0%",
+            template="plotly_white",
+            hovermode="x unified",
+            showlegend=True,
+        )
+        sections.append(pio.to_html(fig_hit_overall, include_plotlyjs="cdn", full_html=False))
 
     # 4) Fake-hit rate vs sample fraction: one trace per sampling method
     fig_fake = go.Figure()

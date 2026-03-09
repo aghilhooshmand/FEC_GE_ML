@@ -18,10 +18,10 @@ CONFIG = {
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 20,  # Number of individuals per generation
-    "evolution.generations": 10,  # Number of evolutionary generations per run
+    "evolution.population": 5000,  # Number of individuals per generation
+    "evolution.generations": 50,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
-    "evolution.n_runs": 3,  # Number of independent runs for statistics/averaging
+    "evolution.n_runs": 30,  # Number of independent runs for statistics/averaging
 
     # --- GA operator tuning -------------------------------------------------
     "ga_parameters.p_crossover": 0.8,  # Probability of crossover between parents
@@ -56,26 +56,26 @@ CONFIG = {
     # --- Fitness Evaluation Cache (FEC) knobs -------------------------------
     "fec.enabled": True,  # Master switch for the cache
     
-    # FEC mode enable/disable flags (set to True to enable, False to disable)
+    # FEC mode enable/disable flags: when True, compute and show the corresponding series in hit-rate charts
     "fec.modes.fec_disabled": False,
-    "fec.modes.fec_enabled_behaviour": True,
-    "fec.modes.fec_enabled_structural": False,
-    "fec.modes.fec_enabled_behaviour_structural": False,
+    "fec.modes.fec_enabled_behaviour_without_structural": True,  # show "behavioural without structural" in breakdown chart
+    "fec.modes.fec_enabled_structural_only": True,              # show "just structural" in breakdown chart
+    "fec.modes.fec_enabled_total": True,                      # show total hit rate (hit vs miss) in overall chart and "behavioural" in breakdown
     
-    "fec.sample_sizes": [round(i * 0.1, 2) for i in range(1, 7)],  # Sweep values: fractions of dataset (0.0-1.0) or absolute counts, from 0.02 to 0.9 in 0.02 increments
+    "fec.sample_sizes": [round(i * 0.1, 2) for i in range(1, 5)],  # Sweep values: fractions of dataset (0.0-1.0) or absolute counts, from 0.02 to 0.9 in 0.02 increments
     
     # Sampling method enable/disable flags (set to True to enable, False to disable)
     "fec.sampling_methods.enabled": {
         "kmeans": True,
-        "kmedoids": True,
+        "kmedoids": False,
         "farthest_point": True,
         "stratified": True,
-        "random": True,
+        "random": False,
         # Special composite method: "union"
         # - When enabled here AND configured via "fec.sampling_methods.union",
         #   the system will build a sample that is the union of several base
         #   sampling methods (see "fec.sampling_methods.union" below).
-        "union": True,
+        "union": False,
     },
     # Union sampling configuration:
     # - False (default): union sampling is disabled.
@@ -106,8 +106,10 @@ CONFIG = {
     # Can be a single string or a list of strings
     "fec.auto_select.distance_metric": "ks",
     
+    # When False, FEC cache does not store per-event lists (detailed_hits/misses/fake_hits); saves a lot of RAM. Charts still use aggregate counts.
+    "fec.record_detailed_events": False,
     "fec.evaluate_fake_hits": True,  # Re-score cached individuals to detect drift
-    "fec.fake_hit_threshold": 0,  # Allowed delta before a cached hit is flagged, 0 means no threshold ( must exactly the same,if not fake happened)
+    "fec.fake_hit_threshold": 1e-5	,  # Allowed delta before a cached hit is flagged, 0 means no threshold ( must exactly the same,if not fake happened)
     "fec.structural_similarity": False,  # Include phenotype string in the cache key #if False means phenotype dosent include when hash fingerprint for looking in cach is creating 
     "fec.behavior_similarity": True,  # Include centroid predictions + labels in key
     # Behaviour key sampling for cache fingerprints:
@@ -123,6 +125,8 @@ CONFIG = {
     # When False, skip writing large per-individual CSVs (e.g. individuals.csv)
     # to save disk space during batch runs.
     "output.save_individuals_csv": False,
+    # When False, PhenotypeTracker does not store per-individual data (saves a lot of RAM).
+    "output.track_individuals": False,
     # When True, skip running new experiments and ONLY generate HTML reports from an existing CSV
     "reports.from_csv_only": False,
 

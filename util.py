@@ -733,7 +733,15 @@ class FECCache:
         self.detailed_hits: List[Dict[str, Any]] = []
         self.detailed_misses: List[Dict[str, Any]] = []
         self.detailed_fake_hits: List[Dict[str, Any]] = []
-        self.cache_metadata: Dict[str, Dict[str, Any]] = {}
+        self.cache_metadata: Dict[str, Dict[str, Any]] = {}  # fingerprint -> {phenotype, ...} for same-phenotype check on hit
+        self.record_detailed_events: bool = True  # When False, don't append to detailed_* (saves RAM)
+        # Hit classification: on hit, same phenotype -> just_structural (both); else -> behavioural_without_structural
+        self.hits_just_structural = 0   # hit + same phenotype (cached formula same as current)
+        self.hits_behavioural_without_structural = 0  # hit + different phenotype (same predictions, different formula)
+        self.gen_hits_just_structural: List[int] = []
+        self.gen_hits_behavioural_without_structural: List[int] = []
+        self.gen_hits_just_structural_count = 0
+        self.gen_hits_behavioural_without_structural_count = 0
 
     def clear(self) -> None:
         self.__init__()
@@ -744,6 +752,8 @@ class FECCache:
         self.gen_misses_count = 0
         self.gen_full_evals_count = 0
         self.gen_sample_evals_count = 0
+        self.gen_hits_just_structural_count = 0
+        self.gen_hits_behavioural_without_structural_count = 0
 
     def end_generation(self) -> None:
         self.gen_hits.append(self.gen_hits_count)
@@ -751,6 +761,8 @@ class FECCache:
         self.gen_misses.append(self.gen_misses_count)
         self.gen_full_evals.append(self.gen_full_evals_count)
         self.gen_sample_evals.append(self.gen_sample_evals_count)
+        self.gen_hits_just_structural.append(self.gen_hits_just_structural_count)
+        self.gen_hits_behavioural_without_structural.append(self.gen_hits_behavioural_without_structural_count)
         self.current_gen += 1
 
     def record_sample_eval(self) -> None:
@@ -761,32 +773,46 @@ class FECCache:
         self.full_evals += 1
         self.gen_full_evals_count += 1
 
+    def record_hit_just_structural(self, phenotype: str, fingerprint: str, cached_fitness: float, actual_fitness: Optional[float]) -> None:
+        """Hit and cached phenotype == current phenotype (same formula)."""
+        self.hits_just_structural += 1
+        self.gen_hits_just_structural_count += 1
+        self.record_hit(phenotype, fingerprint, cached_fitness, actual_fitness)
+
+    def record_hit_behavioural_without_structural(self, phenotype: str, fingerprint: str, cached_fitness: float, actual_fitness: Optional[float]) -> None:
+        """Hit but cached phenotype != current (same predictions on sample, different formula)."""
+        self.hits_behavioural_without_structural += 1
+        self.gen_hits_behavioural_without_structural_count += 1
+        self.record_hit(phenotype, fingerprint, cached_fitness, actual_fitness)
+
     def record_hit(self, phenotype: str, fingerprint: str, cached_fitness: float, actual_fitness: Optional[float]) -> None:
-        meta = self.cache_metadata.get(fingerprint, {})
-        self.detailed_hits.append(
-            {
-                "generation": self.current_gen,
-                "phenotype": phenotype,
-                "fingerprint": fingerprint,
-                "cached_fitness": cached_fitness,
-                "actual_fitness": actual_fitness,
-                "fitness_difference": None if actual_fitness is None else abs(cached_fitness - actual_fitness),
-                "cached_first_stored_at_gen": meta.get("first_stored_gen"),
-                "cached_phenotype_when_stored": meta.get("phenotype"),
-                "is_same_phenotype": phenotype == meta.get("phenotype"),
-            }
-        )
+        if self.record_detailed_events:
+            meta = self.cache_metadata.get(fingerprint, {})
+            self.detailed_hits.append(
+                {
+                    "generation": self.current_gen,
+                    "phenotype": phenotype,
+                    "fingerprint": fingerprint,
+                    "cached_fitness": cached_fitness,
+                    "actual_fitness": actual_fitness,
+                    "fitness_difference": None if actual_fitness is None else abs(cached_fitness - actual_fitness),
+                    "cached_first_stored_at_gen": meta.get("first_stored_gen"),
+                    "cached_phenotype_when_stored": meta.get("phenotype"),
+                    "is_same_phenotype": phenotype == meta.get("phenotype"),
+                }
+            )
 
     def record_miss(self, phenotype: str, fingerprint: str, fitness: float) -> None:
-        self.detailed_misses.append(
-            {
-                "generation": self.current_gen,
-                "phenotype": phenotype,
-                "fingerprint": fingerprint,
-                "fitness": fitness,
-                "cache_stored_at_gen": self.current_gen,
-            }
-        )
+        if self.record_detailed_events:
+            self.detailed_misses.append(
+                {
+                    "generation": self.current_gen,
+                    "phenotype": phenotype,
+                    "fingerprint": fingerprint,
+                    "fitness": fitness,
+                    "cache_stored_at_gen": self.current_gen,
+                }
+            )
         if fingerprint not in self.cache_metadata:
             self.cache_metadata[fingerprint] = {
                 "first_stored_gen": self.current_gen,
@@ -795,24 +821,25 @@ class FECCache:
             }
 
     def record_fake_hit(self, phenotype: str, fingerprint: str, cached_fitness: float, current_full_fitness: float) -> None:
-        meta = self.cache_metadata.get(fingerprint, {})
-        diff = abs(cached_fitness - current_full_fitness)
-        percent = diff / max(abs(cached_fitness), 1e-10) * 100 if cached_fitness else 0.0
-        self.detailed_fake_hits.append(
-            {
-                "generation": self.current_gen,
-                "phenotype": phenotype,
-                "fingerprint": fingerprint,
-                "cached_fitness": cached_fitness,
-                "current_full_fitness": current_full_fitness,
-                "fitness_difference": diff,
-                "fitness_difference_percent": percent,
-                "cached_first_stored_at_gen": meta.get("first_stored_gen"),
-                "cached_phenotype_when_stored": meta.get("phenotype"),
-                "cached_fitness_when_stored": meta.get("fitness_stored"),
-                "is_same_phenotype": phenotype == meta.get("phenotype"),
-            }
-        )
+        if self.record_detailed_events:
+            meta = self.cache_metadata.get(fingerprint, {})
+            diff = abs(cached_fitness - current_full_fitness)
+            percent = diff / max(abs(cached_fitness), 1e-10) * 100 if cached_fitness else 0.0
+            self.detailed_fake_hits.append(
+                {
+                    "generation": self.current_gen,
+                    "phenotype": phenotype,
+                    "fingerprint": fingerprint,
+                    "cached_fitness": cached_fitness,
+                    "current_full_fitness": current_full_fitness,
+                    "fitness_difference": diff,
+                    "fitness_difference_percent": percent,
+                    "cached_first_stored_at_gen": meta.get("first_stored_gen"),
+                    "cached_phenotype_when_stored": meta.get("phenotype"),
+                    "cached_fitness_when_stored": meta.get("fitness_stored"),
+                    "is_same_phenotype": phenotype == meta.get("phenotype"),
+                }
+            )
 
     def get_stats(self) -> Dict[str, Any]:
         total = self.hits + self.misses
@@ -821,7 +848,7 @@ class FECCache:
         full_eval_rate = self.full_evals / total if total else 0.0
 
         sample_eval_rate = self.sample_evals / total if total else 0.0
-        return {
+        out: Dict[str, Any] = {
             "hits": self.hits,
             "misses": self.misses,
             "fake_hits": self.fake_hits,
@@ -837,20 +864,27 @@ class FECCache:
             "gen_misses": self.gen_misses,
             "gen_full_evals": self.gen_full_evals,
             "gen_sample_evals": self.gen_sample_evals,
-            "detailed_hits": self.detailed_hits,
-            "detailed_misses": self.detailed_misses,
-            "detailed_fake_hits": self.detailed_fake_hits,
-            "cache_metadata": self.cache_metadata,
         }
+        if self.record_detailed_events:
+            out["detailed_hits"] = self.detailed_hits
+            out["detailed_misses"] = self.detailed_misses
+            out["detailed_fake_hits"] = self.detailed_fake_hits
+            out["cache_metadata"] = self.cache_metadata
+        out["hits_just_structural"] = self.hits_just_structural
+        out["hits_behavioural_without_structural"] = self.hits_behavioural_without_structural
+        out["gen_hits_just_structural"] = self.gen_hits_just_structural
+        out["gen_hits_behavioural_without_structural"] = self.gen_hits_behavioural_without_structural
+        return out
 
 
 class PhenotypeTracker:
     """Collect phenotype-level information for debugging and analytics."""
 
-    def __init__(self) -> None:
+    def __init__(self, track_individuals: bool = True) -> None:
         self.tracking: List[Dict[str, Any]] = []
         self.current_run = 0
         self.current_gen = 0
+        self.track_individuals = track_individuals  # When False, don't store (saves RAM)
 
     def clear(self) -> None:
         self.tracking.clear()
@@ -862,6 +896,9 @@ class PhenotypeTracker:
         self.current_gen = 0
 
     def record_generation(self, population: Sequence[Any], hof: Optional[tools.HallOfFame], elite_size: int) -> None:
+        if not self.track_individuals:
+            self.current_gen += 1
+            return
         elite_phenotypes = set()
         if hof is not None and len(hof) > 0:
             for i in range(min(elite_size, len(hof))):
@@ -1006,8 +1043,17 @@ def create_fitness_eval(
                 cache.hits += 1
                 cache.gen_hits_count += 1
                 cached_fitness = cache.cache[fingerprint]
-                if not evaluate_fake_hits:
+                # Classify hit: same phenotype -> just structural; else -> behavioural without structural
+                cached_phenotype = cache.cache_metadata.get(fingerprint, {}).get("phenotype")
+                current_phenotype = getattr(individual, "phenotype", None)
+                if cached_phenotype is not None and current_phenotype is not None:
+                    if current_phenotype == cached_phenotype:
+                        cache.record_hit_just_structural(individual.phenotype, fingerprint, cached_fitness, None)
+                    else:
+                        cache.record_hit_behavioural_without_structural(individual.phenotype, fingerprint, cached_fitness, None)
+                elif not evaluate_fake_hits:
                     cache.record_hit(individual.phenotype, fingerprint, cached_fitness, None)
+                if not evaluate_fake_hits:
                     return (cached_fitness,)
                 use_cached_value = True
             else:
@@ -1041,7 +1087,6 @@ def create_fitness_eval(
             cache.record_full_eval()
 
         if use_cached_value and fingerprint:
-            cache.record_hit(individual.phenotype, fingerprint, cached_fitness, fitness_full)
             if evaluate_fake_hits and abs(cached_fitness - fitness_full) > fake_hit_threshold:
                 cache.fake_hits += 1
                 cache.gen_fake_hits_count += 1
