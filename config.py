@@ -18,7 +18,7 @@ CONFIG = {
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 2000,  # Number of individuals per generation
+    "evolution.population": 20000,  # Number of individuals per generation
     "evolution.generations": 50,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
     "evolution.n_runs": 1,  # Number of independent runs for statistics/averaging
@@ -117,7 +117,7 @@ CONFIG = {
     # When False, FEC cache does not store per-event lists (detailed_hits/misses/fake_hits); saves RAM and avoids overhead.
     "fec.record_detailed_events": False,
     # When False, on cache HIT we return cached fitness without re-evaluating (no fake-hit measurement, no extra work).
-    "fec.evaluate_fake_hits": False,
+    "fec.evaluate_fake_hits": True,
     "fec.fake_hit_threshold": 1e-5	,  # Kept for completeness (ignored when evaluate_fake_hits is False)
     "fec.structural_similarity": False,  # Use behaviour-key only in fingerprints (no phenotype component)
     "fec.behavior_similarity": True,  # Include centroid predictions + labels in key

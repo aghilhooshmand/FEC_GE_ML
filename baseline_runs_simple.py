@@ -1,31 +1,27 @@
 from __future__ import annotations
 
 """
-Run one baseline (no FEC) GE run on the full training data.
+Minimal baseline runner (no FEC) for fair runtime comparison.
 
-CLI:
-    python baseline_runs.py --run-index 1 --base-seed 42
+This script is intentionally simple:
+  - Same GE pipeline as FEC, but with caching disabled.
+  - Measures:
+      * total_time_sec          = sum of generation_time from the logbook
+      * total_wall_time_sec     = wall-clock time around the whole experiment
 
-Seed used for this run:
-    seed = base_seed + (run_index - 1)
-
-Each run:
-    - uses the full train set (no sampling, no cache)
-    - computes per-generation stats and final test MAE
-
-Outputs (all runs share the same experiment directory):
-    results/baseline/<dataset>_Gen_<G>_Pop_<P>_Run_<N_from_config>/
-        generation_stats_run<run_index>.csv
-        summary_run<run_index>.csv
+Outputs go under:
+  results_simple/<dataset>_Gen_<G>_Pop_<P>/baseline/
+    generation_stats_run<run>.csv
+    summary_run<run>.csv
 """
 
 import argparse
+import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
-
 import grape.grape as grape
 
 from config import CONFIG
@@ -50,23 +46,19 @@ def _run_one_baseline(
     grammar_file = Path("grammars") / cfg["grammar.file"]
     grammar = grape.Grammar(str(grammar_file))
 
-    print(
-        f"\n=== Baseline run {run_index} / seed={seed} "
-        f"dataset={cfg['dataset.file']} G={cfg['evolution.generations']} "
-        f"Pop={cfg['evolution.population']} ==="
-    )
-
+    t0 = time.perf_counter()
     result: ExperimentResult = run_baseline_experiment(
         cfg=cfg,
-        run_name_suffix=f"baseline_run{run_index}",
+        run_name_suffix=f"baseline_simple_run{run_index}",
         X=X,
         y=y,
         grammar=grammar,
         operators=operators,
         results_root=experiment_dir,
     )
+    t1 = time.perf_counter()
+    total_wall_time_sec = float(t1 - t0)
 
-    # Build per-generation DataFrame and summary (similar to FEC_vs_baseline).
     if not result.logbooks or not result.per_run_tables:
         return
 
@@ -75,10 +67,10 @@ def _run_one_baseline(
 
     # Tag run/mode/fraction (run column may already exist, so just overwrite)
     df["run"] = run_index
-    df["mode"] = "baseline"
+    df["mode"] = "baseline_simple"
     df["sample_fraction"] = 1.0
 
-    # Total time
+    # Total time from logbook (evolution loop only)
     total_time_sec = None
     try:
         gen_times = np.asarray(logbook.select("generation_time"), dtype=float)
@@ -94,15 +86,14 @@ def _run_one_baseline(
 
     summary_row: Dict[str, object] = {
         "run": run_index,
-        "mode": "baseline",
+        "mode": "baseline_simple",
         "sample_fraction": 1.0,
         "final_test_mae": final_test_mae,
         "final_test_accuracy": final_test_accuracy,
+        # total_time_sec = sum of generation_time (evolution only)
         "total_time_sec": total_time_sec,
-        "hits": 0,
-        "misses": 0,
-        "fake_hits": 0,
-        "hit_rate_overall": 0.0,
+        # total_wall_time_sec = wall-clock around the whole baseline pipeline
+        "total_wall_time_sec": total_wall_time_sec,
     }
 
     # Save per-generation and summary CSVs
@@ -113,13 +104,13 @@ def _run_one_baseline(
     summary_path = experiment_dir / f"summary_run{run_index}.csv"
     summary_df.to_csv(summary_path, index=False)
 
-    print(f"Saved baseline per-generation stats to {gen_path}")
-    print(f"Saved baseline summary to {summary_path}")
+    print(f"Saved baseline_simple per-generation stats to {gen_path}")
+    print(f"Saved baseline_simple summary to {summary_path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run one baseline (no FEC) GE run on full training data."
+        description="Run one baseline (no FEC) GE run on full training data (simple pipeline)."
     )
     parser.add_argument(
         "--run-index",
@@ -144,12 +135,12 @@ def main() -> None:
     n_gen = CONFIG.get("evolution.generations", 0)
     pop = CONFIG.get("evolution.population", 0)
 
-    # Common root: results/<dataset>_Gen_<G>_Pop_<P>/baseline
-    results_root = Path("results") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"
+    # Root for simple comparison: results_simple/<dataset>_Gen_<G>_Pop_<P>/baseline/
+    results_root = Path("results_simple") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"
     experiment_dir = results_root / "baseline"
     experiment_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Baseline experiment directory: {experiment_dir}")
+    print(f"Baseline_simple experiment directory: {experiment_dir}")
 
     seed = base_seed + (run_index - 1)
     _run_one_baseline(run_index=run_index, seed=seed, experiment_dir=experiment_dir)

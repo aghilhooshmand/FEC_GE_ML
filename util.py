@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 import html
+import time
 
 #
 # MLflow integration (disabled by default). All related imports and calls
@@ -748,6 +749,8 @@ class FECCache:
         self.gen_hits_behavioural_without_structural: List[int] = []
         self.gen_hits_just_structural_count = 0
         self.gen_hits_behavioural_without_structural_count = 0
+        # Cumulative time spent on fake-hit evaluation (extra full evals on hits)
+        self.fake_eval_time_sec = 0.0
 
     def clear(self) -> None:
         """Reset counts and lists; preserve record_detailed_events."""
@@ -779,6 +782,7 @@ class FECCache:
         self.gen_hits_behavioural_without_structural.clear()
         self.gen_hits_just_structural_count = 0
         self.gen_hits_behavioural_without_structural_count = 0
+        self.fake_eval_time_sec = 0.0
         self.record_detailed_events = kept
 
     def start_generation(self) -> None:
@@ -909,6 +913,7 @@ class FECCache:
         out["hits_behavioural_without_structural"] = self.hits_behavioural_without_structural
         out["gen_hits_just_structural"] = self.gen_hits_just_structural
         out["gen_hits_behavioural_without_structural"] = self.gen_hits_behavioural_without_structural
+        out["fake_eval_time_sec"] = self.fake_eval_time_sec
         return out
 
 
@@ -1096,6 +1101,15 @@ def create_fitness_eval(
                 cache.gen_misses_count += 1
                 register_cache_after_eval = True
 
+        timing_fake = (
+            cache is not None
+            and is_training
+            and evaluate_fake_hits
+            and use_cached_value
+            and fingerprint is not None
+        )
+        fake_t0 = time.perf_counter() if timing_fake else None
+
         eval_env = {"np": np, "x": x}
         eval_env.update(operators)
         try:
@@ -1117,6 +1131,9 @@ def create_fitness_eval(
             fitness_full = 1 - np.mean(np.equal(y_true, y_pred))
         except (IndexError, TypeError):
             return (float("nan"),)
+
+        if timing_fake and fake_t0 is not None:
+            cache.fake_eval_time_sec += float(time.perf_counter() - fake_t0)
 
         if cache is not None and is_training:
             cache.record_full_eval()
