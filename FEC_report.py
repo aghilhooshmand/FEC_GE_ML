@@ -545,7 +545,13 @@ def _build_fec_hit_and_fake_figs(
     fraction: float,
     methods: List[str],
 ) -> List[str]:
-    """Hit / fake-hit rates for one (threshold, fraction). Returns list of HTML fragments (no headers)."""
+    """Hit / fake-hit rates for one (threshold, fraction). Returns list of HTML fragments (no headers).
+
+    Charts:
+      1) Hit-rate breakdown (structural-only, behavioural-only), denominators = hits.
+      2) Total hit rate, denominator = hits + misses.
+      3) Fake-hit rate (fake_hits / hits).
+    """
     frac_rows = _filter_fec_by_threshold_and_fraction(
         fec_gen_agg, threshold, fraction
     )
@@ -553,7 +559,10 @@ def _build_fec_hit_and_fake_figs(
         return []
 
     blocks: List[str] = []
-    fig_hit = go.Figure()
+    # Breakdown: structural-only and behavioural-only (each / hits)
+    fig_hit_breakdown = go.Figure()
+    # Total hit rate: hits / (hits + misses)
+    fig_hit_total = go.Figure()
     fig_fake_rate = go.Figure()
 
     for method in methods:
@@ -572,7 +581,7 @@ def _build_fec_hit_and_fake_figs(
             total = hits + misses
             rate_all = hits / total.replace(0, np.nan)
             if CONFIG.get("fec.modes.fec_enabled_total", True):
-                fig_hit.add_trace(
+                fig_hit_total.add_trace(
                     go.Scatter(
                         x=rows["gen"],
                         y=rate_all,
@@ -583,7 +592,7 @@ def _build_fec_hit_and_fake_figs(
         if hs is not None and hits is not None:
             rate_struct = hs / hits.replace(0, np.nan)
             if CONFIG.get("fec.modes.fec_enabled_structural_only", True):
-                fig_hit.add_trace(
+                fig_hit_breakdown.add_trace(
                     go.Scatter(
                         x=rows["gen"],
                         y=rate_struct,
@@ -596,7 +605,7 @@ def _build_fec_hit_and_fake_figs(
             if CONFIG.get(
                 "fec.modes.fec_enabled_behaviour_without_structural", True
             ):
-                fig_hit.add_trace(
+                fig_hit_breakdown.add_trace(
                     go.Scatter(
                         x=rows["gen"],
                         y=rate_behav,
@@ -616,9 +625,14 @@ def _build_fec_hit_and_fake_figs(
                 )
             )
 
-    if fig_hit.data:
-        fig_hit.update_layout(
-            title=f"Hit rate — Fraction {fraction:.0%}",
+    if fig_hit_breakdown.data:
+        fig_hit_breakdown.update_layout(
+            title=(
+                "Hit-rate breakdown — Fraction "
+                f"{fraction:.0%} "
+                "(structural = hits_just_structural / hits, "
+                "behavioural-only = hits_behavioural_without_structural / hits)"
+            ),
             xaxis_title="Generation",
             yaxis_title="Hit rate",
             yaxis_tickformat=".0%",
@@ -627,7 +641,24 @@ def _build_fec_hit_and_fake_figs(
             showlegend=True,
         )
         blocks.append(
-            pio.to_html(fig_hit, include_plotlyjs="cdn", full_html=False)
+            pio.to_html(fig_hit_breakdown, include_plotlyjs="cdn", full_html=False)
+        )
+    if fig_hit_total.data:
+        fig_hit_total.update_layout(
+            title=(
+                "Total hit rate — Fraction "
+                f"{fraction:.0%} "
+                "(hits / (hits + misses))"
+            ),
+            xaxis_title="Generation",
+            yaxis_title="Total hit rate",
+            yaxis_tickformat=".0%",
+            template="plotly_white",
+            hovermode="x unified",
+            showlegend=True,
+        )
+        blocks.append(
+            pio.to_html(fig_hit_total, include_plotlyjs="cdn", full_html=False)
         )
     if fig_fake_rate.data:
         fig_fake_rate.update_layout(
@@ -1159,6 +1190,300 @@ def _build_cross_threshold_figs(
     return sections
 
 
+def _build_speedup_heatmaps(
+    fec_summary_agg: pd.DataFrame,
+    base_summary_agg: pd.DataFrame,
+    methods: List[str],
+    fractions: List[float],
+    thresholds: List[float],
+) -> List[str]:
+    """
+    Heatmaps over (sample_fraction, fake_hit_threshold) with:
+      - colour = speedup = baseline_time / fec_time
+      - annotation text = \"S=...\\nΔMAE=...\" for that cell.
+
+    One heatmap per sampling method.
+    """
+    sections: List[str] = []
+    if fec_summary_agg.empty or base_summary_agg.empty:
+        return sections
+    if not fractions or not thresholds:
+        return sections
+
+    if (
+        "final_test_mae_mean" not in base_summary_agg.columns
+        or "total_time_sec_mean" not in base_summary_agg.columns
+    ):
+        return sections
+
+    baseline_mae = float(base_summary_agg["final_test_mae_mean"].iloc[0])
+    baseline_time = float(base_summary_agg["total_time_sec_mean"].iloc[0])
+    if not np.isfinite(baseline_time) or baseline_time <= 0:
+        return sections
+
+    th_labels = [_format_threshold_label(t) for t in thresholds]
+
+    for method in methods:
+        rows_method = fec_summary_agg[fec_summary_agg["mode"] == method]
+        if rows_method.empty:
+            continue
+
+        z_speedup: List[List[float]] = []
+        text_annot: List[List[str]] = []
+
+        for frac in fractions:
+            row_speed: List[float] = []
+            row_text: List[str] = []
+            for th in thresholds:
+                mask_frac = np.isclose(
+                    rows_method["sample_fraction"].astype(float), frac
+                )
+                if "fake_hit_threshold" in rows_method.columns:
+                    if np.isnan(th):
+                        mask_th = rows_method["fake_hit_threshold"].isna()
+                    else:
+                        mask_th = np.isclose(
+                            rows_method["fake_hit_threshold"].astype(float), th
+                        )
+                else:
+                    mask_th = np.ones(len(rows_method), dtype=bool)
+                match = rows_method[mask_frac & mask_th]
+                if (
+                    not match.empty
+                    and "total_time_sec_mean" in match.columns
+                    and "final_test_mae_mean" in match.columns
+                ):
+                    t_fec = float(match["total_time_sec_mean"].iloc[0])
+                    mae_fec = float(match["final_test_mae_mean"].iloc[0])
+                    if np.isfinite(t_fec) and t_fec > 0:
+                        speed = baseline_time / t_fec
+                    else:
+                        speed = np.nan
+                    if np.isfinite(mae_fec) and np.isfinite(baseline_mae):
+                        d_mae = mae_fec - baseline_mae
+                    else:
+                        d_mae = np.nan
+                    row_speed.append(speed)
+                    if np.isfinite(speed) or np.isfinite(d_mae):
+                        row_text.append(
+                            f"S={speed:.2f}\\nΔMAE={d_mae:.3f}"
+                            if np.isfinite(speed) and np.isfinite(d_mae)
+                            else (
+                                f"S={speed:.2f}\\nΔMAE=?"
+                                if np.isfinite(speed)
+                                else f"S=?\\nΔMAE={d_mae:.3f}"
+                            )
+                        )
+                    else:
+                        row_text.append("")
+                else:
+                    row_speed.append(np.nan)
+                    row_text.append("")
+            z_speedup.append(row_speed)
+            text_annot.append(row_text)
+
+        # If all cells are NaN, skip this method
+        if not any(
+            np.isfinite(val) for row in z_speedup for val in row  # type: ignore[arg-type]
+        ):
+            continue
+
+        fig = go.Figure(
+            data=go.Heatmap(
+                z=z_speedup,
+                x=th_labels,
+                y=[f"{f:.0%}" for f in fractions],
+                text=text_annot,
+                texttemplate="%{text}",
+                colorscale="Viridis",
+                colorbar=dict(title="Speedup"),
+                zmin=0.0,
+            )
+        )
+        fig.update_layout(
+            title=(
+                "Speedup heatmap — "
+                f"{_format_method_display(method)} "
+                "(colour = baseline_time / FEC_time; "
+                "text: S=speedup, ΔMAE=FEC−baseline)"
+            ),
+            xaxis_title="Fake-hit threshold",
+            yaxis_title="Sample fraction",
+            template="plotly_white",
+        )
+        sections.append(
+            pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
+        )
+
+    return sections
+
+
+def _build_hit_and_fake_heatmaps(
+    fec_summary_agg: pd.DataFrame,
+    methods: List[str],
+    fractions: List[float],
+    thresholds: List[float],
+) -> List[str]:
+    """
+    Heatmaps over (sample_fraction, fake_hit_threshold) with:
+      - colour = overall hit rate (hits / (hits + misses))  [0–1]
+      - colour = overall fake-hit rate (fake_hits / hits)   [0–1]
+
+    One pair of heatmaps per sampling method.
+    """
+    sections: List[str] = []
+    if fec_summary_agg.empty:
+        return sections
+    if not fractions or not thresholds:
+        return sections
+
+    if (
+        "hit_rate_overall_mean" not in fec_summary_agg.columns
+        or "fake_hit_rate_overall_mean" not in fec_summary_agg.columns
+    ):
+        return sections
+
+    th_labels = [_format_threshold_label(t) for t in thresholds]
+    frac_labels = [f"{f:.0%}" for f in fractions]
+
+    for method in methods:
+        rows_method = fec_summary_agg[fec_summary_agg["mode"] == method]
+        if rows_method.empty:
+            continue
+
+        # Hit-rate heatmap
+        z_hit: List[List[float]] = []
+        text_hit: List[List[str]] = []
+
+        # Fake-hit-rate heatmap
+        z_fake: List[List[float]] = []
+        text_fake: List[List[str]] = []
+
+        for frac in fractions:
+            row_hit: List[float] = []
+            row_hit_text: List[str] = []
+            row_fake: List[float] = []
+            row_fake_text: List[str] = []
+            for th in thresholds:
+                mask_frac = np.isclose(
+                    rows_method["sample_fraction"].astype(float), frac
+                )
+                if "fake_hit_threshold" in rows_method.columns:
+                    if np.isnan(th):
+                        mask_th = rows_method["fake_hit_threshold"].isna()
+                    else:
+                        mask_th = np.isclose(
+                            rows_method["fake_hit_threshold"].astype(float), th
+                        )
+                else:
+                    mask_th = np.ones(len(rows_method), dtype=bool)
+                match = rows_method[mask_frac & mask_th]
+                if not match.empty:
+                    hr = float(match["hit_rate_overall_mean"].iloc[0])
+                    fr = float(match["fake_hit_rate_overall_mean"].iloc[0])
+                    row_hit.append(hr if np.isfinite(hr) else np.nan)
+                    row_fake.append(fr if np.isfinite(fr) else np.nan)
+                    row_hit_text.append(f"{hr:.2%}" if np.isfinite(hr) else "")
+                    row_fake_text.append(f"{fr:.2%}" if np.isfinite(fr) else "")
+                else:
+                    row_hit.append(np.nan)
+                    row_fake.append(np.nan)
+                    row_hit_text.append("")
+                    row_fake_text.append("")
+            z_hit.append(row_hit)
+            text_hit.append(row_hit_text)
+            z_fake.append(row_fake)
+            text_fake.append(row_fake_text)
+
+        hit_vals = [
+            val
+            for row in z_hit
+            for val in row  # type: ignore[arg-type]
+            if np.isfinite(val)
+        ]
+        if hit_vals:
+            hit_min = float(min(hit_vals))
+            hit_max = float(max(hit_vals))
+            if hit_max == hit_min:
+                hit_min = max(0.0, hit_min - 0.01)
+                hit_max = min(1.0, hit_max + 0.01)
+            else:
+                pad = 0.05 * (hit_max - hit_min)
+                hit_min = max(0.0, hit_min - pad)
+                hit_max = min(1.0, hit_max + pad)
+            fig_hit = go.Figure(
+                data=go.Heatmap(
+                    z=z_hit,
+                    x=th_labels,
+                    y=frac_labels,
+                    text=text_hit,
+                    texttemplate="%{text}",
+                    colorscale="Blues",
+                    colorbar=dict(title="Hit rate"),
+                    zmin=hit_min,
+                    zmax=hit_max,
+                )
+            )
+            fig_hit.update_layout(
+                title=(
+                    "Hit-rate heatmap — "
+                    f"{_format_method_display(method)} "
+                    "(hits / (hits + misses))"
+                ),
+                xaxis_title="Fake-hit threshold",
+                yaxis_title="Sample fraction",
+                template="plotly_white",
+            )
+            sections.append(
+                pio.to_html(fig_hit, include_plotlyjs="cdn", full_html=False)
+            )
+
+        fake_vals = [
+            val
+            for row in z_fake
+            for val in row  # type: ignore[arg-type]
+            if np.isfinite(val)
+        ]
+        if fake_vals:
+            fake_min = float(min(fake_vals))
+            fake_max = float(max(fake_vals))
+            if fake_max == fake_min:
+                fake_min = max(0.0, fake_min - 0.01)
+                fake_max = min(1.0, fake_max + 0.01)
+            else:
+                pad = 0.05 * (fake_max - fake_min)
+                fake_min = max(0.0, fake_min - pad)
+                fake_max = min(1.0, fake_max + pad)
+            fig_fake = go.Figure(
+                data=go.Heatmap(
+                    z=z_fake,
+                    x=th_labels,
+                    y=frac_labels,
+                    text=text_fake,
+                    texttemplate="%{text}",
+                    colorscale="Reds",
+                    colorbar=dict(title="Fake-hit rate"),
+                    zmin=fake_min,
+                    zmax=fake_max,
+                )
+            )
+            fig_fake.update_layout(
+                title=(
+                    "Fake-hit-rate heatmap — "
+                    f"{_format_method_display(method)} "
+                    "(fake_hits / hits)"
+                ),
+                xaxis_title="Fake-hit threshold",
+                yaxis_title="Sample fraction",
+                template="plotly_white",
+            )
+            sections.append(
+                pio.to_html(fig_fake, include_plotlyjs="cdn", full_html=False)
+            )
+
+    return sections
+
+
 def _build_comparison_table(
     fec_summary_agg: pd.DataFrame,
     base_summary_agg: pd.DataFrame,
@@ -1423,6 +1748,25 @@ def main() -> None:
                     summary_thresholds,
                     methods,
                     all_fractions,
+                )
+            )
+            sections.append("<h2>Speedup heatmaps (fraction × threshold)</h2>")
+            sections.extend(
+                _build_speedup_heatmaps(
+                    sum_agg_fec,
+                    sum_agg_base,
+                    methods,
+                    all_fractions,
+                    summary_thresholds,
+                )
+            )
+            sections.append("<h2>Hit-rate and fake-hit-rate heatmaps (fraction × threshold)</h2>")
+            sections.extend(
+                _build_hit_and_fake_heatmaps(
+                    sum_agg_fec,
+                    methods,
+                    all_fractions,
+                    summary_thresholds,
                 )
             )
 
