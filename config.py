@@ -5,8 +5,8 @@
 CONFIG = {
     # --- Dataset inputs -----------------------------------------------------
     # Local CSV under ./data
-    "dataset.file": "wine.csv",
-    "dataset.label_column": "class",  # Target column name (uses last column if missing)
+    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
+    "dataset.label_column": "RFS_STATUS",  # Target column name (uses last column if missing)
     # Optional subsampling of the dataset before train/test split.
     # - If None or 1.0: use the full dataset.
     # - If 0 < dataset.sample_fraction < 1.0: randomly select that fraction of
@@ -18,10 +18,10 @@ CONFIG = {
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 5000,  # Number of individuals per generation
+    "evolution.population": 2000,  # Number of individuals per generation
     "evolution.generations": 50,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
-    "evolution.n_runs": 30,  # Number of independent runs for statistics/averaging
+    "evolution.n_runs": 1,  # Number of independent runs for statistics/averaging
 
     # --- GA operator tuning -------------------------------------------------
     "ga_parameters.p_crossover": 0.8,  # Probability of crossover between parents
@@ -56,6 +56,27 @@ CONFIG = {
     # --- Fitness Evaluation Cache (FEC) knobs -------------------------------
     "fec.enabled": True,  # Master switch for the cache
     
+    # ------------------------------------------------------------------------
+    # FEC ANALYSIS vs. RUNTIME-COMPARISON MODES
+    #
+    # 1) Analysis mode (for understanding behaviour, fake hits, breakdowns):
+    #    - fec.structural_similarity: True
+    #    - fec.behavior_similarity: True
+    #    - fec.evaluate_fake_hits: True
+    #    - fec.record_detailed_events: True (if RAM allows)
+    #    - output.track_individuals: True (if needed)
+    #
+    # 2) Runtime-comparison mode (NO OVERHEAD – for accurate FEC vs baseline time):
+    #    - fec.structural_similarity: False     (behaviour-key only, no phenotype in fingerprint)
+    #    - fec.behavior_similarity: True
+    #    - fec.evaluate_fake_hits: False        (no re-eval on cache hit; fake_hits stay 0)
+    #    - fec.record_detailed_events: False   (no detailed_* lists; FECCache uses config)
+    #    - output.track_individuals: False     (PhenotypeTracker does not store per-individual data)
+    #    - output.plot: False                  (no Plotly charts during run)
+    #    - output.save_individuals_csv: False
+    # The current config below is set up for RUNTIME-COMPARISON (no overhead).
+    # ------------------------------------------------------------------------
+    
     # FEC mode enable/disable flags: when True, compute and show the corresponding series in hit-rate charts
     "fec.modes.fec_disabled": False,
     "fec.modes.fec_enabled_behaviour_without_structural": True,  # show "behavioural without structural" in breakdown chart
@@ -66,10 +87,10 @@ CONFIG = {
     
     # Sampling method enable/disable flags (set to True to enable, False to disable)
     "fec.sampling_methods.enabled": {
-        "kmeans": True,
+        "kmeans": False,
         "kmedoids": False,
         "farthest_point": True,
-        "stratified": True,
+        "stratified": False,
         "random": False,
         # Special composite method: "union"
         # - When enabled here AND configured via "fec.sampling_methods.union",
@@ -86,58 +107,42 @@ CONFIG = {
     #     * use that union as the final sampled dataset for FEC.
     "fec.sampling_methods.union": ["kmeans", "farthest_point","stratified"],
     
-    # --- Auto-selection of sampling methods -----------------------------------
-    # When True: automatically selects the best sampling method by comparing
-    # how well each method's samples represent the full dataset using statistical
-    # distance metrics. Only the winning method is used for all subsequent experiments.
-    # When False: all enabled sampling methods are run independently (default behavior).
-    "fec.auto_select_sampling_method": False,
-    # Number of repetitions for auto-selection evaluation (default: 20)
-    "fec.auto_select.n_repetitions": 10,
-    # Sample fraction to use during auto-selection evaluation (default: 0.1 = 10%)
-    "fec.auto_select.sample_fraction": 0.1,
-    # Statistical distance metric(s) to use for comparison:
-    # - "ks": Kolmogorov-Smirnov distance (univariate, per feature)
-    # - "wasserstein": Wasserstein distance (multivariate)
-    # - "energy": Energy distance (E-test)
-    # - "mmd": Maximum Mean Discrepancy
-    # - "frechet": Fréchet distance (FID-style)
-    # - "average": Average over all available metrics (recommended)
-    # Can be a single string or a list of strings
-    "fec.auto_select.distance_metric": "ks",
+    # --- Auto-selection of sampling methods (disabled in this refactor) ------
+    # Kept here as comments for possible future use.
+    # "fec.auto_select_sampling_method": False,
+    # "fec.auto_select.n_repetitions": 10,
+    # "fec.auto_select.sample_fraction": 0.1,
+    # "fec.auto_select.distance_metric": "ks",
     
-    # When False, FEC cache does not store per-event lists (detailed_hits/misses/fake_hits); saves a lot of RAM. Charts still use aggregate counts.
+    # When False, FEC cache does not store per-event lists (detailed_hits/misses/fake_hits); saves RAM and avoids overhead.
     "fec.record_detailed_events": False,
-    "fec.evaluate_fake_hits": True,  # Re-score cached individuals to detect drift
-    "fec.fake_hit_threshold": 1e-5	,  # Allowed delta before a cached hit is flagged, 0 means no threshold ( must exactly the same,if not fake happened)
-    "fec.structural_similarity": False,  # Include phenotype string in the cache key #if False means phenotype dosent include when hash fingerprint for looking in cach is creating 
+    # When False, on cache HIT we return cached fitness without re-evaluating (no fake-hit measurement, no extra work).
+    "fec.evaluate_fake_hits": False,
+    "fec.fake_hit_threshold": 1e-5	,  # Kept for completeness (ignored when evaluate_fake_hits is False)
+    "fec.structural_similarity": False,  # Use behaviour-key only in fingerprints (no phenotype component)
     "fec.behavior_similarity": True,  # Include centroid predictions + labels in key
-    # Behaviour key sampling for cache fingerprints:
-    # - fec.behavior_key.sample_fraction: fraction of centroid points to use in the key (0-1]. 1.0 = all points.
-    # - fec.behavior_key.max_points: hard cap on number of points in the key (set to 0 or None for no cap).
-    # - fec.behavior_key.random_subset: when True, pick a random subset of points for the key; when False, use the first N.
-    "fec.behavior_key.sample_fraction": 1.0,
-    "fec.behavior_key.max_points": 0,
-    "fec.behavior_key.random_subset": False,
+    # Behaviour key sampling for cache fingerprints (now simplified to use all centroids):
+    # "fec.behavior_key.sample_fraction": 1.0,
+    # "fec.behavior_key.max_points": 0,
+    # "fec.behavior_key.random_subset": False,
 
     # --- Output artefacts ---------------------------------------------------
-    "output.plot": True,  # Whether to emit Plotly charts (saved under ./results/)
-    # When False, skip writing large per-individual CSVs (e.g. individuals.csv)
-    # to save disk space during batch runs.
+    # Set False for runtime-comparison (no overhead). Set True if you want Plotly charts during run.
+    "output.plot": False,
     "output.save_individuals_csv": False,
-    # When False, PhenotypeTracker does not store per-individual data (saves a lot of RAM).
+    # When False, PhenotypeTracker does not store per-individual data (saves RAM, no overhead).
     "output.track_individuals": False,
     # When True, skip running new experiments and ONLY generate HTML reports from an existing CSV
     "reports.from_csv_only": False,
 
-    # --- MLflow tracking ----------------------------------------------------
-    "mlflow.enabled": True,  # Toggle experiment tracking entirely
-    "mlflow.experiment_name": "Sample size effect - RFC breast cancer Experiments V1.0",  # MLflow experiment bucket
-    "mlflow.run_name_prefix": "setup",  # Prefix for auto-generated run names
-    "mlflow.tracking_uri": "sqlite:///results/mlflow/mlflow.db",  # Tracking backend
-    "mlflow.artifact_paths.charts": "charts",  # Subdirectory for chart artifacts
-    "mlflow.artifact_paths.reports": "reports",  # Subdirectory for report artifacts
-    "mlflow.artifact_paths.cache_stats": "cache_stats",  # Subdirectory for cache stats
+    # --- MLflow tracking (disabled / commented out) -------------------------
+    # "mlflow.enabled": False,  # Toggle experiment tracking entirely
+    # "mlflow.experiment_name": "Sample size effect - RFC breast cancer Experiments V1.0",
+    # "mlflow.run_name_prefix": "setup",
+    # "mlflow.tracking_uri": "sqlite:///results/mlflow/mlflow.db",
+    # "mlflow.artifact_paths.charts": "charts",
+    # "mlflow.artifact_paths.reports": "reports",
+    # "mlflow.artifact_paths.cache_stats": "cache_stats",
 
     # --- Resume / report from previous run ----------------------------------
     # Set to a CSV file path (relative to results/ or absolute) to base reports on that file.

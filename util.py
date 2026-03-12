@@ -10,7 +10,11 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 import html
 
-import mlflow
+#
+# MLflow integration (disabled by default). All related imports and calls
+# are commented out so that mlflow is not required to run the project.
+#
+# import mlflow
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -101,15 +105,17 @@ __all__ = [
     "validate_config",
     "load_operators",
     "load_dataset",
-    "configure_mlflow",
-    "log_config_to_mlflow",
+    # "configure_mlflow",
+    # "log_config_to_mlflow",
     "FECCache",
     "PhenotypeTracker",
     "create_fitness_eval",
     "baseline_fitness_eval",
     "prepare_toolbox",
     "ExperimentResult",
-    "run_configured_experiment",
+    "run_configured_experiment",  # legacy, shared core
+    "run_baseline_experiment",
+    "run_fec_experiment",
     "plot_comparison",
     "compare_fec_modes",
     "generate_sample_size_comparison",
@@ -205,7 +211,7 @@ def derive_behavior_key(
         pred_selected = pred_centroid[indices]
         labels_selected = centroid_y_copy[indices]
 
-        pred_str = ",".join(f"{value:.6f}" for value in pred_selected)
+        pred_str = ",".join(f"{value:.3f}" for value in pred_selected)
         label_str = ",".join(str(label) for label in labels_selected)
         sample_str = ",".join(str(idx) for idx in centroid_indices) if centroid_indices is not None else "full"
         if cache is not None:
@@ -674,34 +680,34 @@ def auto_select_sampling_method(
     return best_method
 
 
-def configure_mlflow(cfg: Dict[str, Any]) -> None:
-    if not cfg.get("mlflow.enabled", False):
-        return
-
-    tracking_uri = cfg.get("mlflow.tracking_uri")
-    if tracking_uri and tracking_uri.startswith("sqlite:///"):
-        db_path = tracking_uri.replace("sqlite:///", "", 1)
-        db_abs = Path.cwd() / db_path if not os.path.isabs(db_path) else Path(db_path)
-        _ensure_dir(db_abs.parent)
-        mlflow.set_tracking_uri(f"sqlite:///{db_abs}")
-
-    mlflow.set_experiment(cfg.get("mlflow.experiment_name", "FEC Experiments"))
-    
-    if mlflow.active_run() is not None:
-        mlflow.end_run()
-
-
-def log_config_to_mlflow(cfg: Dict[str, Any], run_prefix: str, variant_tag: str) -> None:
-    if not cfg.get("mlflow.enabled", False):
-        return
-
-    if mlflow.active_run() is None:
-        mlflow.start_run(run_name=f"{run_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-    mlflow.set_tags({"variant": variant_tag})
-    
-    # Convert lists to comma-separated strings for MLflow
-    params = {k: (",".join(map(str, v)) if isinstance(v, (list, tuple, set)) else v) for k, v in cfg.items()}
-    mlflow.log_params(params)
+# def configure_mlflow(cfg: Dict[str, Any]) -> None:
+#     if not cfg.get("mlflow.enabled", False):
+#         return
+#
+#     tracking_uri = cfg.get("mlflow.tracking_uri")
+#     if tracking_uri and tracking_uri.startswith("sqlite:///"):
+#         db_path = tracking_uri.replace("sqlite:///", "", 1)
+#         db_abs = Path.cwd() / db_path if not os.path.isabs(db_path) else Path(db_path)
+#         _ensure_dir(db_abs.parent)
+#         mlflow.set_tracking_uri(f"sqlite:///{db_abs}")
+#
+#     mlflow.set_experiment(cfg.get("mlflow.experiment_name", "FEC Experiments"))
+#     
+#     if mlflow.active_run() is not None:
+#         mlflow.end_run()
+#
+#
+# def log_config_to_mlflow(cfg: Dict[str, Any], run_prefix: str, variant_tag: str) -> None:
+#     if not cfg.get("mlflow.enabled", False):
+#         return
+#
+#     if mlflow.active_run() is None:
+#         mlflow.start_run(run_name=f"{run_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+#     mlflow.set_tags({"variant": variant_tag})
+#     
+#     # Convert lists to comma-separated strings for MLflow
+#     params = {k: (",".join(map(str, v)) if isinstance(v, (list, tuple, set)) else v) for k, v in cfg.items()}
+#     mlflow.log_params(params)
 
 
 # ---------------------------------------------------------------------------
@@ -712,7 +718,7 @@ def log_config_to_mlflow(cfg: Dict[str, Any], run_prefix: str, variant_tag: str)
 class FECCache:
     """Fitness Evaluation Cache with per-generation statistics."""
 
-    def __init__(self) -> None:
+    def __init__(self, record_detailed_events: bool = False) -> None:
         self.cache: Dict[str, float] = {}
         self.hits = 0
         self.misses = 0
@@ -734,7 +740,7 @@ class FECCache:
         self.detailed_misses: List[Dict[str, Any]] = []
         self.detailed_fake_hits: List[Dict[str, Any]] = []
         self.cache_metadata: Dict[str, Dict[str, Any]] = {}  # fingerprint -> {phenotype, ...} for same-phenotype check on hit
-        self.record_detailed_events: bool = True  # When False, don't append to detailed_* (saves RAM)
+        self.record_detailed_events: bool = record_detailed_events  # When False, don't append to detailed_* (saves RAM, no overhead)
         # Hit classification: on hit, same phenotype -> just_structural (both); else -> behavioural_without_structural
         self.hits_just_structural = 0   # hit + same phenotype (cached formula same as current)
         self.hits_behavioural_without_structural = 0  # hit + different phenotype (same predictions, different formula)
@@ -744,7 +750,36 @@ class FECCache:
         self.gen_hits_behavioural_without_structural_count = 0
 
     def clear(self) -> None:
-        self.__init__()
+        """Reset counts and lists; preserve record_detailed_events."""
+        kept = self.record_detailed_events
+        self.cache.clear()
+        self.hits = 0
+        self.misses = 0
+        self.fake_hits = 0
+        self.gen_hits.clear()
+        self.gen_fake_hits.clear()
+        self.gen_misses.clear()
+        self.gen_full_evals.clear()
+        self.gen_sample_evals.clear()
+        self.gen_hits_count = 0
+        self.gen_fake_hits_count = 0
+        self.gen_misses_count = 0
+        self.gen_full_evals_count = 0
+        self.gen_sample_evals_count = 0
+        self.full_evals = 0
+        self.sample_evals = 0
+        self.current_gen = 0
+        self.detailed_hits.clear()
+        self.detailed_misses.clear()
+        self.detailed_fake_hits.clear()
+        self.cache_metadata.clear()
+        self.hits_just_structural = 0
+        self.hits_behavioural_without_structural = 0
+        self.gen_hits_just_structural.clear()
+        self.gen_hits_behavioural_without_structural.clear()
+        self.gen_hits_just_structural_count = 0
+        self.gen_hits_behavioural_without_structural_count = 0
+        self.record_detailed_events = kept
 
     def start_generation(self) -> None:
         self.gen_hits_count = 0
@@ -1186,14 +1221,10 @@ def run_configured_experiment(
     operators: Dict[str, Any],
     results_root: Optional[Path] = None,
 ) -> ExperimentResult:
-    mlflow_enabled = cfg.get("mlflow.enabled", False)
-    run_prefix_base = cfg.get("mlflow.run_name_prefix", "setup")
-    run_prefix = f"{run_prefix_base}_{run_name_suffix}" if run_name_suffix else run_prefix_base
-    variant_tag = run_name_suffix or "baseline"
-
-    if mlflow_enabled:
-        configure_mlflow(cfg)
-        log_config_to_mlflow(cfg, run_prefix, variant_tag)
+    # MLflow tracking is disabled (see commented helpers above).
+    mlflow_enabled = False
+    # Simple run name prefix used only for console printing.
+    run_prefix = run_name_suffix or "run"
 
     run_batch_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     n_runs = int(cfg["evolution.n_runs"])
@@ -1209,7 +1240,8 @@ def run_configured_experiment(
     toolbox = prepare_toolbox(cfg, operators, grammar)
 
     results_dir = _ensure_dir(results_root if results_root is not None else Path.cwd() / "results")
-    tracker = PhenotypeTracker()
+    track_individuals = bool(cfg.get("output.track_individuals", False))
+    tracker = PhenotypeTracker(track_individuals=track_individuals)
     tracker.clear()
 
     all_logbooks: List[tools.Logbook] = []
@@ -1338,7 +1370,8 @@ def run_configured_experiment(
                         X_train_full, y_train_full, actual_sample_size, sampling_seed
                     )
                 
-                run_cache = FECCache()
+                record_detailed = bool(cfg.get("fec.record_detailed_events", False))
+                run_cache = FECCache(record_detailed_events=record_detailed)
                 run_cache.clear()
                 if sampling_method != "union":
                     print(f"✓ Sampling complete: {actual_sample_size} samples selected using '{sampling_method}' method")
@@ -1366,8 +1399,6 @@ def run_configured_experiment(
             else:
                 eval_fn = lambda ind, pts: baseline_fitness_eval(ind, pts, operators)
 
-            if "evaluate" in toolbox.__dict__:
-                del toolbox.__dict__["evaluate"]
             toolbox.register("evaluate", eval_fn)
 
             population = toolbox.populationCreator(pop_size=int(cfg["evolution.population"]), **toolbox.population_kwargs)
@@ -1457,47 +1488,7 @@ def run_configured_experiment(
                 }
             all_cache_stats.append(cache_stats)
 
-            if mlflow_enabled:
-                def _log_metric_sequence(metric_name: str, values: Sequence[Any]) -> None:
-                    for gen_idx, value in enumerate(values):
-                        try:
-                            numeric_value = float(value)
-                        except (TypeError, ValueError):
-                            continue
-                        mlflow.log_metric(metric_name, numeric_value, step=int(gen_idx))
-
-                gen_hits = cache_stats.get("gen_hits", [])
-                gen_misses = cache_stats.get("gen_misses", [])
-                gen_fake_hits = cache_stats.get("gen_fake_hits", [])
-                gen_full = cache_stats.get("gen_full_evals", [])
-                gen_sample = cache_stats.get("gen_sample_evals", [])
-
-                hit_rates: List[float] = []
-                cumul_hit_rates: List[float] = []
-                if gen_hits and gen_misses:
-                    cum_hits_total = 0.0
-                    cum_eval_total = 0.0
-                    for hits_val, miss_val in zip(gen_hits, gen_misses):
-                        total = hits_val + miss_val
-                        hit_rates.append((hits_val / total) if total else 0.0)
-                        cum_hits_total += hits_val
-                        cum_eval_total += total
-                        cumul_hit_rates.append((cum_hits_total / cum_eval_total) if cum_eval_total else 0.0)
-                    _log_metric_sequence("gen_hit_rate", hit_rates)
-                    _log_metric_sequence("gen_hit_rate_cumulative", cumul_hit_rates)
-                if gen_fake_hits and gen_hits:
-                    fake_rates = []
-                    for fake_val, hits_val in zip(gen_fake_hits, gen_hits):
-                        fake_rates.append((fake_val / hits_val) if hits_val else 0.0)
-                    _log_metric_sequence("gen_fake_hit_rate", fake_rates)
-                if gen_hits:
-                    _log_metric_sequence("gen_hits", gen_hits)
-                if gen_misses:
-                    _log_metric_sequence("gen_misses", gen_misses)
-                if gen_full:
-                    _log_metric_sequence("gen_full_evals", gen_full)
-                if gen_sample:
-                    _log_metric_sequence("gen_sample_evals", gen_sample)
+            # MLflow metric logging disabled.
 
             report_columns = cfg.get("report_items", [])
             if report_columns and len(logbook) > 0:
@@ -1512,13 +1503,7 @@ def run_configured_experiment(
             best_fitness = hof.items[0].fitness.values[0] if len(hof) > 0 else float("nan")
             print(f"Run {run_idx + 1} completed. Best fitness: {best_fitness}")
 
-            if mlflow_enabled:
-                mlflow.log_metric("best_train_fitness", float(best_fitness), step=run_idx)
-                mlflow.log_metric("run_hit_rate", cache_stats.get("hit_rate", 0.0), step=run_idx)
-                mlflow.log_metric("run_fake_hit_rate", cache_stats.get("fake_hit_rate", 0.0), step=run_idx)
-                mlflow.log_metric("run_hits", cache_stats.get("hits", 0), step=run_idx)
-                mlflow.log_metric("run_misses", cache_stats.get("misses", 0), step=run_idx)
-                mlflow.log_metric("run_fake_hits", cache_stats.get("fake_hits", 0), step=run_idx)
+            # MLflow metric logging disabled.
 
     combined_results: Optional[pd.DataFrame] = None
     aggregated_means: Optional[pd.DataFrame] = None
@@ -1540,14 +1525,8 @@ def run_configured_experiment(
             aggregated_std = grouped.std(ddof=0)
             aggregated_std.index.name = "gen"
             # Don't save individual CSV files - will be appended to single CSV instead
-            if mlflow_enabled:
-                for metric_name in ["avg", "std", "min", "max", "fitness_test", "selection_time", "generation_time"]:
-                    if metric_name in aggregated_means.columns:
-                        for gen, value in aggregated_means[metric_name].items():
-                            mlflow.log_metric(metric_name, float(value), step=int(gen))
+            # MLflow aggregated metric logging disabled.
 
-    if mlflow_enabled and mlflow.active_run() is not None:
-        mlflow.end_run()
 
     return ExperimentResult(
         config=cfg,
@@ -1561,6 +1540,63 @@ def run_configured_experiment(
         aggregated_std=aggregated_std,
         tracker=tracker,
         results_dir=results_dir,
+    )
+
+
+def run_baseline_experiment(
+    cfg: Dict[str, Any],
+    run_name_suffix: str | None,
+    X: np.ndarray,
+    y: np.ndarray,
+    grammar: grape.Grammar,
+    operators: Dict[str, Any],
+    results_root: Path | None = None,
+) -> ExperimentResult:
+    """
+    Thin wrapper around run_configured_experiment for a pure baseline run
+    (no FEC, full training data).
+    """
+    cfg_baseline = cfg.copy()
+    cfg_baseline["fec.enabled"] = False
+    cfg_baseline["fec.sample_fraction"] = None
+    cfg_baseline["fec.sample_size"] = 0
+    return run_configured_experiment(
+        cfg=cfg_baseline,
+        run_name_suffix=run_name_suffix,
+        X=X,
+        y=y,
+        grammar=grammar,
+        operators=operators,
+        results_root=results_root,
+    )
+
+
+def run_fec_experiment(
+    cfg: Dict[str, Any],
+    run_name_suffix: str | None,
+    X: np.ndarray,
+    y: np.ndarray,
+    grammar: grape.Grammar,
+    operators: Dict[str, Any],
+    results_root: Path | None = None,
+) -> ExperimentResult:
+    """
+    Thin wrapper around run_configured_experiment for a FEC-enabled run.
+    Assumes cfg already contains the desired FEC settings:
+        - fec.enabled = True
+        - fec.sampling_method
+        - fec.sample_fraction or fec.sample_size
+    """
+    cfg_fec = cfg.copy()
+    cfg_fec["fec.enabled"] = True
+    return run_configured_experiment(
+        cfg=cfg_fec,
+        run_name_suffix=run_name_suffix,
+        X=X,
+        y=y,
+        grammar=grammar,
+        operators=operators,
+        results_root=results_root,
     )
 
 
