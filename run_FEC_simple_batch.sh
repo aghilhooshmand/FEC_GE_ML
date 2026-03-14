@@ -14,11 +14,11 @@ set -euo pipefail
 
 # Edit these arrays to choose what to run:
 SAMPLING_METHODS=("farthest_point") #("farthest_point" "kmeans")
-FRACTIONS=(0.1 0.2 0.3 0.4)
-FAKE_HIT_THRESHOLDS=(0 1e-1 1e-3 1e-4 1e-5)
+FRACTIONS=(0.1 0.2 0.3)
+FAKE_HIT_THRESHOLDS=(0 1e-5)
 
 RUNS_PER_CONFIG="${1:-30}"
-MAX_PARALLEL="${2:-20}"
+MAX_PARALLEL="${2:-30}"
 BASE_SEED=42
 
 echo "FEC_simple batch configuration:"

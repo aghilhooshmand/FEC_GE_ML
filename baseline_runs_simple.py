@@ -24,8 +24,13 @@ import numpy as np
 import pandas as pd
 import grape.grape as grape
 
-from config import CONFIG
-from util import ExperimentResult, load_dataset, load_operators, run_baseline_experiment
+from config_baseline_simple import CONFIG_BASELINE_SIMPLE
+from util_simple import (
+    SimpleExperimentResult,
+    load_dataset,
+    load_operators,
+    run_baseline_experiment_simple,
+)
 
 
 def _run_one_baseline(
@@ -34,12 +39,8 @@ def _run_one_baseline(
     experiment_dir: Path,
 ) -> None:
     """Run a single baseline experiment (no FEC) with a given seed."""
-    cfg = CONFIG.copy()
-    cfg["evolution.n_runs"] = 1
+    cfg = CONFIG_BASELINE_SIMPLE.copy()
     cfg["evolution.random_seed"] = seed
-    cfg["fec.enabled"] = False
-    cfg["fec.sample_fraction"] = None
-    cfg["fec.sample_size"] = 0
 
     X, y = load_dataset(cfg)
     operators = load_operators(Path("operators"))
@@ -47,7 +48,7 @@ def _run_one_baseline(
     grammar = grape.Grammar(str(grammar_file))
 
     t0 = time.perf_counter()
-    result: ExperimentResult = run_baseline_experiment(
+    result: SimpleExperimentResult = run_baseline_experiment_simple(
         cfg=cfg,
         run_name_suffix=f"baseline_simple_run{run_index}",
         X=X,
@@ -59,11 +60,12 @@ def _run_one_baseline(
     t1 = time.perf_counter()
     total_wall_time_sec = float(t1 - t0)
 
-    if not result.logbooks or not result.per_run_tables:
+    # Simple pipeline returns a single logbook and per-run table.
+    if result.logbook is None or result.per_run_table is None or result.per_run_table.empty:
         return
 
-    logbook = result.logbooks[0]
-    df = result.per_run_tables[0].copy()
+    logbook = result.logbook
+    df = result.per_run_table.copy()
 
     # Tag run/mode/fraction (run column may already exist, so just overwrite)
     df["run"] = run_index
@@ -121,7 +123,7 @@ def main() -> None:
     parser.add_argument(
         "--base-seed",
         type=int,
-        default=int(CONFIG.get("evolution.random_seed", 42)),
+        default=42,
         help="Base RNG seed; run_seed = base_seed + (run_index-1).",
     )
     args = parser.parse_args()
@@ -131,9 +133,9 @@ def main() -> None:
     if run_index < 1:
         raise SystemExit("run-index must be >= 1")
 
-    dataset_stem = Path(CONFIG.get("dataset.file", "data")).stem
-    n_gen = CONFIG.get("evolution.generations", 0)
-    pop = CONFIG.get("evolution.population", 0)
+    dataset_stem = Path(str(CONFIG_BASELINE_SIMPLE.get("dataset.file", "data"))).stem
+    n_gen = int(CONFIG_BASELINE_SIMPLE.get("evolution.generations", 0))
+    pop = int(CONFIG_BASELINE_SIMPLE.get("evolution.population", 0))
 
     # Root for simple comparison: results_simple/<dataset>_Gen_<G>_Pop_<P>/baseline/
     results_root = Path("results_simple") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"

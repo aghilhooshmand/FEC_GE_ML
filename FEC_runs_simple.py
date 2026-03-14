@@ -26,8 +26,13 @@ import numpy as np
 import pandas as pd
 import grape.grape as grape
 
-from config import CONFIG
-from util import ExperimentResult, load_dataset, load_operators, run_fec_experiment
+from config_FEC_simple import CONFIG_FEC_SIMPLE
+from util_simple import (
+    SimpleExperimentResult,
+    load_dataset,
+    load_operators,
+    run_fec_experiment_simple,
+)
 
 
 VALID_SAMPLING_METHODS = {
@@ -52,24 +57,11 @@ def _run_one_fec_simple(
     combo = (int(base_seed), int(run_index), str(sampling_method), float(sample_fraction))
     seed = abs(hash(combo)) % (2**31 - 1)
 
-    cfg = CONFIG.copy()
-    cfg["evolution.n_runs"] = 1
+    cfg = CONFIG_FEC_SIMPLE.copy()
     cfg["evolution.random_seed"] = seed
-
-    # FEC configuration (minimal: cache only, no fake-hit re-eval, no detailed events).
-    cfg["fec.enabled"] = True
     cfg["fec.sampling_method"] = sampling_method
     cfg["fec.sample_fraction"] = float(sample_fraction)
-    cfg["fec.structural_similarity"] = False
-    cfg["fec.behavior_similarity"] = True
-    cfg["fec.evaluate_fake_hits"] = False
-    cfg["fec.record_detailed_events"] = False
     cfg["fec.fake_hit_threshold"] = float(fake_hit_threshold)
-
-    # Avoid any tracking / plotting overhead during the run.
-    cfg["output.track_individuals"] = False
-    cfg["output.plot"] = False
-    cfg["output.save_individuals_csv"] = False
 
     X, y = load_dataset(cfg)
     operators = load_operators(Path("operators"))
@@ -90,7 +82,7 @@ def _run_one_fec_simple(
     run_suffix = f"FEC_simple_{file_tag}_run{run_index}"
 
     t0 = time.perf_counter()
-    result: ExperimentResult = run_fec_experiment(
+    result: SimpleExperimentResult = run_fec_experiment_simple(
         cfg=cfg,
         run_name_suffix=run_suffix,
         X=X,
@@ -102,11 +94,12 @@ def _run_one_fec_simple(
     t1 = time.perf_counter()
     total_wall_time_sec = float(t1 - t0)
 
-    if not result.logbooks or not result.per_run_tables:
+    # Simple pipeline returns a single logbook and per-run table.
+    if result.logbook is None or result.per_run_table is None or result.per_run_table.empty:
         return
 
-    logbook = result.logbooks[0]
-    df = result.per_run_tables[0].copy()
+    logbook = result.logbook
+    df = result.per_run_table.copy()
 
     mode_label = f"fec_simple_{sampling_method}"
     df["run"] = run_index
@@ -128,7 +121,7 @@ def _run_one_fec_simple(
     final_test_accuracy = 1.0 - final_test_mae if final_test_mae is not None else None
 
     # We can optionally still use cache_stats for basic hit/miss counts if present.
-    cache_stats = result.cache_stats[0] if result.cache_stats else {}
+    cache_stats = result.cache_stats or {}
     hits_total = float(cache_stats.get("hits", 0.0) or 0.0)
     misses_total = float(cache_stats.get("misses", 0.0) or 0.0)
     total_lookups = hits_total + misses_total
@@ -177,7 +170,7 @@ def main() -> None:
     parser.add_argument(
         "--base-seed",
         type=int,
-        default=int(CONFIG.get("evolution.random_seed", 42)),
+        default=int(CONFIG_FEC_SIMPLE.get("evolution.random_seed", 42)),
         help="Base RNG seed used together with run-index and sample fraction.",
     )
     parser.add_argument(
@@ -195,7 +188,7 @@ def main() -> None:
     parser.add_argument(
         "--fake-hit-threshold",
         type=float,
-        default=float(CONFIG.get("fec.fake_hit_threshold", 1e-5)),
+        default=float(CONFIG_FEC_SIMPLE.get("fec.fake_hit_threshold", 1e-5)),
         help=(
             "Fake-hit threshold parameter (no re-eval in simple mode, "
             "recorded for analysis and filenames only)."
@@ -216,9 +209,9 @@ def main() -> None:
     if sampling_method not in VALID_SAMPLING_METHODS:
         raise SystemExit(f"sampling-method must be one of {sorted(VALID_SAMPLING_METHODS)}.")
 
-    dataset_stem = Path(CONFIG.get("dataset.file", "data")).stem
-    n_gen = CONFIG.get("evolution.generations", 0)
-    pop = CONFIG.get("evolution.population", 0)
+    dataset_stem = Path(CONFIG_FEC_SIMPLE.get("dataset.file", "data")).stem
+    n_gen = CONFIG_FEC_SIMPLE.get("evolution.generations", 0)
+    pop = CONFIG_FEC_SIMPLE.get("evolution.population", 0)
 
     # Root for simple comparison: results_simple/<dataset>_Gen_<G>_Pop_<P>/FEC/
     results_root = Path("results_simple") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"

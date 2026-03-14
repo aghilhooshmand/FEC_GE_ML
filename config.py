@@ -5,8 +5,8 @@
 CONFIG = {
     # --- Dataset inputs -----------------------------------------------------
     # Local CSV under ./data
-    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
-    "dataset.label_column": "RFS_STATUS",  # Target column name (uses last column if missing)
+    "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
+    "dataset.label_column": "diagnosis",  # Target column name (uses last column if missing)
     # Optional subsampling of the dataset before train/test split.
     # - If None or 1.0: use the full dataset.
     # - If 0 < dataset.sample_fraction < 1.0: randomly select that fraction of
@@ -18,8 +18,8 @@ CONFIG = {
     "grammar.file": "heartDisease.bnf",  # BNF grammar file in ./grammars directory
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 20000,  # Number of individuals per generation
-    "evolution.generations": 50,  # Number of evolutionary generations per run
+    "evolution.population": 10,  # Number of individuals per generation
+    "evolution.generations": 3,  # Number of evolutionary generations per run
     "evolution.random_seed": 42,  # Base RNG seed; each run offsets by +run index
     "evolution.n_runs": 1,  # Number of independent runs for statistics/averaging
 
