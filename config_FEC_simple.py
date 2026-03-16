@@ -21,8 +21,8 @@ CONFIG_FEC_SIMPLE: Dict[str, object] = {
     "grammar.file": "heartDisease.bnf",
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 5000,
-    "evolution.generations": 50,
+    "evolution.population": 100,
+    "evolution.generations": 10,
     "evolution.random_seed": 42,  # will be overwritten per run
 
     # --- GA operator tuning -------------------------------------------------

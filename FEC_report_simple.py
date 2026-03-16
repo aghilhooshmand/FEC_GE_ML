@@ -401,6 +401,13 @@ def _speedup_pvalue(baseline_times: np.ndarray, fec_fair_times: np.ndarray) -> f
     fec_fair_times = fec_fair_times[np.isfinite(fec_fair_times)]
     if baseline_times.size < 2 or fec_fair_times.size < 2:
         return np.nan
+    try:
+        result = stats.ttest_ind(
+            baseline_times, fec_fair_times, alternative="greater", equal_var=False
+        )
+        return float(result.pvalue)
+    except Exception:
+        return np.nan
 
 
 def _mae_pvalue(baseline_mae: np.ndarray, fec_mae: np.ndarray) -> float:
@@ -417,13 +424,6 @@ def _mae_pvalue(baseline_mae: np.ndarray, fec_mae: np.ndarray) -> float:
     try:
         result = stats.ttest_ind(
             baseline_mae, fec_mae, alternative="two-sided", equal_var=False
-        )
-        return float(result.pvalue)
-    except Exception:
-        return np.nan
-    try:
-        result = stats.ttest_ind(
-            baseline_times, fec_fair_times, alternative="greater", equal_var=False
         )
         return float(result.pvalue)
     except Exception:
@@ -791,19 +791,23 @@ def _build_speedup_heatmaps(
                             else:
                                 mask_comb &= np.isclose(combined_summary["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
                         sub_c = combined_summary.loc[mask_comb]
+                        signif = False
                         if not sub_c.empty and "speedup_pvalue" in sub_c.columns:
                             p_val = float(sub_c["speedup_pvalue"].iloc[0])
                             if np.isfinite(p_val):
-                                star = "*" if p_val < 0.05 else ""
+                                signif = p_val < 0.05
+                                star = "*" if signif else ""
                                 p_txt = f"\np={p_val:.3g}{star}"
 
                     if np.isfinite(speed) and np.isfinite(d_mae):
-                        txt = f"S={speed:.2f}\nΔMAE={d_mae:.3f}"
+                        core_txt = f"S={speed:.2f}\nΔMAE={d_mae:.3f}"
                     elif np.isfinite(speed):
-                        txt = f"S={speed:.2f}"
+                        core_txt = f"S={speed:.2f}"
                     else:
-                        txt = ""
-                    txt += p_txt
+                        core_txt = ""
+                    core_txt += p_txt
+                    # If speedup p-value is significant, emphasize this cell
+                    txt = f"<b>{core_txt}</b>" if core_txt and 'star' in locals() and signif else core_txt
                     row_txt.append(txt)
                 else:
                     row_speed.append(np.nan)
@@ -934,7 +938,8 @@ def _build_combined_summary(
         "sample_fraction": 1.0,
         "threshold": np.nan,
         "fake_hit_threshold": np.nan,
-        "speedup": np.nan,
+        # Baseline is the reference: speedup = 1 by definition
+        "speedup": 1.0,
         "speedup_pvalue": np.nan,
         "delta_mae_vs_baseline": 0.0,
         "delta_accuracy_vs_baseline": 0.0,
@@ -947,6 +952,9 @@ def _build_combined_summary(
     baseline_mae_runs = None
     if sum_all_base is not None and "total_time_sec" in sum_all_base.columns:
         baseline_times = np.asarray(sum_all_base["total_time_sec"].dropna(), dtype=float)
+        # If aggregated baseline_time is NaN but we have per-run times, fall back to their mean
+        if (not np.isfinite(baseline_time)) and baseline_times.size > 0:
+            baseline_time = float(np.nanmean(baseline_times))
     if sum_all_base is not None and "final_test_mae" in sum_all_base.columns:
         baseline_mae_runs = np.asarray(sum_all_base["final_test_mae"].dropna(), dtype=float)
 
@@ -970,13 +978,30 @@ def _build_combined_summary(
                 mask_th = np.isclose(sum_all_fec["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
             sub = sum_all_fec.loc[mask_m & mask_f & mask_th]
             if sub.shape[0] >= 2:
+                # Build per-run fair times robustly: prefer total_time_fair_sec per row,
+                # otherwise fall back to total_time_sec - fake_eval_time_sec.
+                t = np.asarray(sub.get("total_time_sec", np.nan), dtype=float)
+                f = np.asarray(sub.get("fake_eval_time_sec", 0.0), dtype=float)
                 if "total_time_fair_sec" in sub.columns:
-                    fec_times = np.asarray(sub["total_time_fair_sec"].dropna(), dtype=float)
+                    tf = np.asarray(sub["total_time_fair_sec"], dtype=float)
                 else:
-                    t = np.asarray(sub["total_time_sec"], dtype=float)
-                    f = np.asarray(sub.get("fake_eval_time_sec", 0), dtype=float)
-                    fec_times = np.maximum(0.0, t - f)
-                    fec_times = fec_times[np.isfinite(fec_times)]
+                    tf = np.full_like(t, np.nan, dtype=float)
+                fec_times_list: list[float] = []
+                for tt, ffair, ffake in zip(t, tf, f):
+                    if np.isfinite(ffair):
+                        # If an explicit fair time is stored, use it.
+                        v = float(ffair)
+                    elif np.isfinite(tt) and np.isfinite(ffake):
+                        # If we know total_time_sec and fake_eval_time_sec, subtract to get fair time.
+                        v = max(0.0, float(tt - ffake))
+                    elif np.isfinite(tt):
+                        # Fallback for simple pipeline: treat total_time_sec itself as fair time.
+                        v = float(tt)
+                    else:
+                        continue
+                    if np.isfinite(v):
+                        fec_times_list.append(v)
+                fec_times = np.asarray(fec_times_list, dtype=float)
                 if fec_times.size >= 2:
                     speedup_pvalue = _speedup_pvalue(baseline_times, fec_times)
 
@@ -1108,6 +1133,31 @@ def main() -> None:
         sections.append("<h2>Hit-rate and fake-hit-rate heatmaps (fraction × threshold)</h2>")
         sections.extend(_build_hit_and_fake_heatmaps(sum_agg_fec, methods, all_fractions, summary_thresholds))
 
+    # Prepare summary table HTML, bolding p-values < 0.05
+    if not combined.empty:
+        combined_display = combined.copy()
+        # Format numeric columns to short strings for display
+        for col in combined_display.columns:
+            if np.issubdtype(combined_display[col].dtype, np.number):
+                combined_display[col] = combined_display[col].map(
+                    lambda v: "" if pd.isna(v) else f"{float(v):.5g}"
+                )
+        # Bold significant p-values
+        for pcol in ["speedup_pvalue", "mae_pvalue"]:
+            if pcol in combined_display.columns:
+                def _bold_if_sig(val: str) -> str:
+                    if val == "":
+                        return val
+                    try:
+                        v = float(val)
+                    except (TypeError, ValueError):
+                        return val
+                    return f"<b>{val}</b>" if v < 0.05 else val
+                combined_display[pcol] = combined_display[pcol].map(_bold_if_sig)
+        summary_html = combined_display.to_html(index=False, escape=False)
+    else:
+        summary_html = "<p>No data.</p>"
+
     html = (
         "<html><head><meta charset='utf-8' /><title>Baseline vs FEC (Simple Pipeline Report)</title>"
         "<script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script></head><body>"
@@ -1116,7 +1166,7 @@ def main() -> None:
         "speedup_pvalue: one-sided t-test on runtime (H1: baseline mean time &gt; FEC mean time); p &lt; 0.05 indicates significant speedup. "
         "mae_pvalue: two-sided t-test on final test MAE; p &lt; 0.05 indicates a statistically significant difference in test fitness.</p>"
         "<h2>Summary table</h2>"
-        + (combined.to_html(index=False, float_format=lambda x: f"{x:.5g}") if not combined.empty else "<p>No data.</p>")
+        + summary_html
         + "".join(sections)
         + "</body></html>"
     )
