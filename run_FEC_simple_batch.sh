@@ -14,8 +14,8 @@ set -euo pipefail
 
 # Edit these arrays to choose what to run:
 SAMPLING_METHODS=("farthest_point" "kmeans") #("farthest_point" "kmeans")
-FRACTIONS=(0.1 0.2 0.3 0.4)
-FAKE_HIT_THRESHOLDS=(0 1e-2 1e-5 1e-6)
+FRACTIONS=(0.1 0.2)
+FAKE_HIT_THRESHOLDS=(0 1e-5)
 
 RUNS_PER_CONFIG="${1:-30}"
 MAX_PARALLEL="${2:-30}"

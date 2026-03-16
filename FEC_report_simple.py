@@ -401,6 +401,26 @@ def _speedup_pvalue(baseline_times: np.ndarray, fec_fair_times: np.ndarray) -> f
     fec_fair_times = fec_fair_times[np.isfinite(fec_fair_times)]
     if baseline_times.size < 2 or fec_fair_times.size < 2:
         return np.nan
+
+
+def _mae_pvalue(baseline_mae: np.ndarray, fec_mae: np.ndarray) -> float:
+    """
+    Two-sided t-test on final-test MAE: H0 mean_baseline == mean_FEC, H1 means differ.
+    Returns p-value; small p means difference in test fitness is significant.
+    """
+    baseline_mae = np.asarray(baseline_mae, dtype=float)
+    fec_mae = np.asarray(fec_mae, dtype=float)
+    baseline_mae = baseline_mae[np.isfinite(baseline_mae)]
+    fec_mae = fec_mae[np.isfinite(fec_mae)]
+    if baseline_mae.size < 2 or fec_mae.size < 2:
+        return np.nan
+    try:
+        result = stats.ttest_ind(
+            baseline_mae, fec_mae, alternative="two-sided", equal_var=False
+        )
+        return float(result.pvalue)
+    except Exception:
+        return np.nan
     try:
         result = stats.ttest_ind(
             baseline_times, fec_fair_times, alternative="greater", equal_var=False
@@ -726,6 +746,7 @@ def _build_speedup_heatmaps(
     methods: List[str],
     fractions: List[float],
     thresholds: List[float],
+    combined_summary: pd.DataFrame | None = None,
 ) -> List[str]:
     sections = []
     if fec_summary_agg.empty or base_summary_agg.empty or not fractions or not thresholds:
@@ -756,7 +777,34 @@ def _build_speedup_heatmaps(
                     speed = baseline_time / fair_t if np.isfinite(fair_t) and fair_t > 0 else np.nan
                     d_mae = mae_fec - baseline_mae if np.isfinite(mae_fec) else np.nan
                     row_speed.append(speed)
-                    row_txt.append(f"S={speed:.2f}\nΔMAE={d_mae:.3f}" if np.isfinite(speed) and np.isfinite(d_mae) else (f"S={speed:.2f}" if np.isfinite(speed) else ""))
+                    # Optional: look up p-value for this configuration (if combined_summary provided)
+                    p_txt = ""
+                    if combined_summary is not None and not combined_summary.empty and np.isfinite(speed):
+                        mask_comb = (
+                            (combined_summary["source"] == "FEC")
+                            & (combined_summary["mode"] == method)
+                            & np.isclose(combined_summary["sample_fraction"].astype(float), frac, rtol=_FLOAT_RTOL)
+                        )
+                        if "fake_hit_threshold" in combined_summary.columns:
+                            if np.isnan(th):
+                                mask_comb &= combined_summary["fake_hit_threshold"].isna()
+                            else:
+                                mask_comb &= np.isclose(combined_summary["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
+                        sub_c = combined_summary.loc[mask_comb]
+                        if not sub_c.empty and "speedup_pvalue" in sub_c.columns:
+                            p_val = float(sub_c["speedup_pvalue"].iloc[0])
+                            if np.isfinite(p_val):
+                                star = "*" if p_val < 0.05 else ""
+                                p_txt = f"\np={p_val:.3g}{star}"
+
+                    if np.isfinite(speed) and np.isfinite(d_mae):
+                        txt = f"S={speed:.2f}\nΔMAE={d_mae:.3f}"
+                    elif np.isfinite(speed):
+                        txt = f"S={speed:.2f}"
+                    else:
+                        txt = ""
+                    txt += p_txt
+                    row_txt.append(txt)
                 else:
                     row_speed.append(np.nan)
                     row_txt.append("")
@@ -772,7 +820,7 @@ def _build_speedup_heatmaps(
             )
         )
         fig.update_layout(
-            title=f"Speedup heatmap — {_format_method_display(method)} (Speedup = baseline total_time_sec / FEC total_time_fair_sec)",
+            title=f"Speedup heatmap — {_format_method_display(method)} (Speedup = baseline total_time_sec / FEC total_time_fair_sec; '*': p < 0.05)",
             xaxis_title="Fake-hit threshold", yaxis_title="Sample fraction", template="plotly_white",
         )
         sections.append(pio.to_html(fig, include_plotlyjs=False, full_html=False))
@@ -875,7 +923,7 @@ def _build_combined_summary(
 
     identity = ["source", "sampling_method", "mode", "sampling_fraction", "sample_fraction", "threshold", "fake_hit_threshold"]
     key_metrics = ["final_test_mae_mean", "final_test_mae_std", "final_test_accuracy_mean", "final_test_accuracy_std", "total_time_sec_mean", "total_time_sec_std"]
-    comparison = ["speedup", "speedup_pvalue", "delta_mae_vs_baseline", "delta_accuracy_vs_baseline"]
+    comparison = ["speedup", "speedup_pvalue", "mae_pvalue", "delta_mae_vs_baseline", "delta_accuracy_vs_baseline"]
     rows = []
 
     bline = {
@@ -896,8 +944,11 @@ def _build_combined_summary(
     rows.append(bline)
 
     baseline_times = None
+    baseline_mae_runs = None
     if sum_all_base is not None and "total_time_sec" in sum_all_base.columns:
         baseline_times = np.asarray(sum_all_base["total_time_sec"].dropna(), dtype=float)
+    if sum_all_base is not None and "final_test_mae" in sum_all_base.columns:
+        baseline_mae_runs = np.asarray(sum_all_base["final_test_mae"].dropna(), dtype=float)
 
     for _, row in fec_summary_agg.iterrows():
         mae = float(row.get("final_test_mae_mean", np.nan))
@@ -908,6 +959,7 @@ def _build_combined_summary(
         delta_acc = acc - baseline_acc if np.isfinite(acc) and np.isfinite(baseline_acc) else np.nan
 
         speedup_pvalue = np.nan
+        mae_pvalue = np.nan
         if baseline_times is not None and sum_all_fec is not None and baseline_times.size >= 2:
             mode, frac, th = row["mode"], float(row["sample_fraction"]), row.get("fake_hit_threshold", np.nan)
             mask_m = sum_all_fec["mode"] == mode
@@ -928,6 +980,20 @@ def _build_combined_summary(
                 if fec_times.size >= 2:
                     speedup_pvalue = _speedup_pvalue(baseline_times, fec_times)
 
+        if baseline_mae_runs is not None and sum_all_fec is not None and baseline_mae_runs.size >= 2:
+            mode, frac, th = row["mode"], float(row["sample_fraction"]), row.get("fake_hit_threshold", np.nan)
+            mask_m = sum_all_fec["mode"] == mode
+            mask_f = np.isclose(sum_all_fec["sample_fraction"].astype(float), frac, rtol=_FLOAT_RTOL)
+            if np.isnan(th):
+                mask_th = sum_all_fec["fake_hit_threshold"].isna()
+            else:
+                mask_th = np.isclose(sum_all_fec["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
+            sub_mae = sum_all_fec.loc[mask_m & mask_f & mask_th]
+            if sub_mae.shape[0] >= 2 and "final_test_mae" in sub_mae.columns:
+                fec_mae_runs = np.asarray(sub_mae["final_test_mae"].dropna(), dtype=float)
+                if fec_mae_runs.size >= 2:
+                    mae_pvalue = _mae_pvalue(baseline_mae_runs, fec_mae_runs)
+
         frac_val = float(row["sample_fraction"])
         th_val = row.get("fake_hit_threshold", np.nan)
         try:
@@ -944,6 +1010,7 @@ def _build_combined_summary(
             "fake_hit_threshold": th_val,
             "speedup": speedup,
             "speedup_pvalue": speedup_pvalue,
+            "mae_pvalue": mae_pvalue,
             "delta_mae_vs_baseline": delta_mae,
             "delta_accuracy_vs_baseline": delta_acc,
         }
@@ -1037,7 +1104,7 @@ def main() -> None:
         sections.append("<h2>Across thresholds</h2>")
         sections.extend(_build_cross_threshold_figs(sum_agg_fec, sum_agg_base, summary_thresholds, methods, all_fractions))
         sections.append("<h2>Speedup heatmaps (fraction × threshold)</h2>")
-        sections.extend(_build_speedup_heatmaps(sum_agg_fec, sum_agg_base, methods, all_fractions, summary_thresholds))
+        sections.extend(_build_speedup_heatmaps(sum_agg_fec, sum_agg_base, methods, all_fractions, summary_thresholds, combined))
         sections.append("<h2>Hit-rate and fake-hit-rate heatmaps (fraction × threshold)</h2>")
         sections.extend(_build_hit_and_fake_heatmaps(sum_agg_fec, methods, all_fractions, summary_thresholds))
 
@@ -1046,7 +1113,8 @@ def main() -> None:
         "<script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script></head><body>"
         "<h1>Baseline vs FEC (Simple Pipeline Report)</h1>"
         "<p>Speedup = baseline total_time_sec / FEC total_time_fair_sec (fair time excludes fake-hit evaluation). "
-        "speedup_pvalue: one-sided t-test (H1: baseline mean time &gt; FEC mean time); p &lt; 0.05 indicates significant speedup.</p>"
+        "speedup_pvalue: one-sided t-test on runtime (H1: baseline mean time &gt; FEC mean time); p &lt; 0.05 indicates significant speedup. "
+        "mae_pvalue: two-sided t-test on final test MAE; p &lt; 0.05 indicates a statistically significant difference in test fitness.</p>"
         "<h2>Summary table</h2>"
         + (combined.to_html(index=False, float_format=lambda x: f"{x:.5g}") if not combined.empty else "<p>No data.</p>")
         + "".join(sections)
