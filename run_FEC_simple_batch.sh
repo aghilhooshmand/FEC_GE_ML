@@ -13,9 +13,9 @@ set -euo pipefail
 #   ./run_FEC_simple_batch.sh 30 4      # 30 runs per config, max 4 parallel
 
 # Edit these arrays to choose what to run:
-SAMPLING_METHODS=("farthest_point") #("farthest_point" "kmeans")
-FRACTIONS=(0.1 0.2 0.3)
-FAKE_HIT_THRESHOLDS=(0 1e-5)
+SAMPLING_METHODS=("farthest_point" "kmeans") #("farthest_point" "kmeans")
+FRACTIONS=(0.1 0.2 0.3 0.4)
+FAKE_HIT_THRESHOLDS=(0 1e-2 1e-5 1e-6)
 
 RUNS_PER_CONFIG="${1:-30}"
 MAX_PARALLEL="${2:-30}"

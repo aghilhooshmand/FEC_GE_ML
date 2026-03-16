@@ -12,8 +12,8 @@ from typing import Dict
 
 CONFIG_FEC_SIMPLE: Dict[str, object] = {
     # --- Dataset inputs -----------------------------------------------------
-    "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
-    "dataset.label_column": "diagnosis",
+    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
+    "dataset.label_column": "RFS_STATUS",
     "dataset.sample_fraction": None,
     "dataset.test_size": 0.2,
 
@@ -21,8 +21,8 @@ CONFIG_FEC_SIMPLE: Dict[str, object] = {
     "grammar.file": "heartDisease.bnf",
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 100,
-    "evolution.generations": 10,
+    "evolution.population": 5000,
+    "evolution.generations": 50,
     "evolution.random_seed": 42,  # will be overwritten per run
 
     # --- GA operator tuning -------------------------------------------------

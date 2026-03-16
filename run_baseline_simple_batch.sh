@@ -8,12 +8,12 @@ set -euo pipefail
 #
 # Usage:
 #   chmod +x run_baseline_simple_batch.sh
-#   ./run_baseline_simple_batch.sh          # default: 20 runs, max 4 at a time
+#   ./run_baseline_simple_batch.sh          # default: 30 runs, max 30 at a time
 #   ./run_baseline_simple_batch.sh 5       # 5 runs
 #   ./run_baseline_simple_batch.sh 20 8    # 20 runs, max 8 parallel
 
-NUM_RUNS="${1:-20}"
-MAX_PARALLEL="${2:-4}"
+NUM_RUNS="${1:-30}"
+MAX_PARALLEL="${2:-30}"
 BASE_SEED=42
 
 echo "Launching ${NUM_RUNS} baseline_simple runs (max ${MAX_PARALLEL} at a time)."

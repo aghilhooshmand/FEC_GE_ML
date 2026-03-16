@@ -127,6 +127,12 @@ def _run_one_fec_simple(
     total_lookups = hits_total + misses_total
     overall_hit_rate = hits_total / total_lookups if total_lookups > 0.0 else 0.0
     fake_eval_time_sec = float(cache_stats.get("fake_eval_time_sec", 0.0) or 0.0)
+    fake_hits_count = int(cache_stats.get("fake_hits", 0) or 0)
+
+    # Fair time for comparison with baseline: exclude fake-hit re-evaluation overhead
+    total_time_fair_sec = None
+    if total_time_sec is not None and fake_eval_time_sec is not None:
+        total_time_fair_sec = max(0.0, float(total_time_sec) - fake_eval_time_sec)
 
     summary_row: Dict[str, object] = {
         "run": run_index,
@@ -137,6 +143,8 @@ def _run_one_fec_simple(
         "final_test_accuracy": final_test_accuracy,
         # total_time_sec = sum of generation_time (evolution + caching only)
         "total_time_sec": total_time_sec,
+        # total_time_fair_sec = total_time_sec minus fake_eval_time_sec (for fair baseline comparison)
+        "total_time_fair_sec": total_time_fair_sec,
         # total_wall_time_sec = wall-clock around the whole FEC pipeline
         "total_wall_time_sec": total_wall_time_sec,
         # Time spent ONLY on fake-hit evaluation (extra full evals on hits)
@@ -144,6 +152,7 @@ def _run_one_fec_simple(
         "hits": hits_total,
         "misses": misses_total,
         "hit_rate_overall": overall_hit_rate,
+        "fake_hits": fake_hits_count,
     }
 
     gen_path = experiment_dir / f"generation_stats_{file_tag}_run{run_index}.csv"
