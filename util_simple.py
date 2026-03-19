@@ -26,6 +26,13 @@ class SimpleExperimentResult:
 
 
 def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Load X, y from CSV (see ``util.load_dataset``).
+
+    Simple runners call this; implementation lives in ``util.py``, including
+    optional ``dataset.smoth_balance`` (one-time cached balanced CSV under
+    ``data/`` for all runs).
+    """
     return _load_dataset(cfg)
 
 

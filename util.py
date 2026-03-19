@@ -372,27 +372,32 @@ def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
         label_col = df.columns[-1]
     cfg["dataset.label_column"] = str(label_col)
 
-    # Optional dataset balancing ("SMOTH" = simple oversampling)
-    # Apply before any subsampling (dataset.sample_fraction) so class balance
-    # is respected throughout the pipeline.
+    # Optional dataset balancing ("SMOTH" = simple oversampling).
+    # Once for all runs: cache to disk so load_dataset() does not re-balance
+    # every run. Fixed seed when building the cache (not evolution.random_seed).
     if bool(cfg.get("dataset.smoth_balance", False)):
-        y_all = df[label_col].astype(int)
-        classes, counts = np.unique(y_all, return_counts=True)
-        if classes.size == 2:
-            maj_class = int(classes[np.argmax(counts)])
-            min_class = int(classes[np.argmin(counts)])
-            n_target = int(counts.max())
-            n_min = int(counts.min())
-            if n_min < n_target:
-                rng = np.random.default_rng(int(cfg.get("evolution.random_seed", 42)))
-                pos = np.arange(len(df))
-                pos_min = pos[y_all == min_class]
-                # Duplicate minority rows until minority count matches the majority.
-                n_to_add = n_target - n_min
-                add_pos = rng.choice(pos_min, size=n_to_add, replace=True)
-                new_pos = np.concatenate([pos, add_pos])
-                perm = rng.permutation(new_pos.shape[0])
-                df = df.iloc[new_pos[perm]].reset_index(drop=True)
+        smoth_out_path = data_dir / f"{Path(str(cfg['dataset.file'])).stem}_smoth_{label_col}.csv"
+        if smoth_out_path.exists():
+            df = pd.read_csv(smoth_out_path)
+            df = preprocess_dataframe(df)
+        else:
+            y_all = df[label_col].astype(int)
+            classes, counts = np.unique(y_all, return_counts=True)
+            if classes.size == 2:
+                n_target = int(counts.max())
+                n_min = int(counts.min())
+                min_class = int(classes[np.argmin(counts)])
+                if n_min < n_target:
+                    rng = np.random.default_rng(42)
+                    pos = np.arange(len(df))
+                    pos_min = pos[y_all == min_class]
+                    n_to_add = n_target - n_min
+                    add_pos = rng.choice(pos_min, size=n_to_add, replace=True)
+                    new_pos = np.concatenate([pos, add_pos])
+                    perm = rng.permutation(new_pos.shape[0])
+                    df = df.iloc[new_pos[perm]].reset_index(drop=True)
+            smoth_out_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(smoth_out_path, index=False)
 
     # Optional stratified subsampling (preserve class ratio, use a fraction of rows)
     sample_fraction = cfg.get("dataset.sample_fraction")
