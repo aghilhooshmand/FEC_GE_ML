@@ -9,10 +9,10 @@ Same structure as FEC_report.py but:
   - Outputs:
       - baseline/generation_stats_aggregated.csv   (evolution: per-generation metrics aggregated across runs)
       - baseline/summary_aggregated.csv            (summary stats aggregated across baseline runs)
-      - FEC/generation_stats_aggregated_FEC.csv   (evolution: per-generation metrics by mode/fraction/threshold, aggregated across runs)
-      - FEC/summary_aggregated_FEC.csv            (summary stats by mode/fraction/threshold, aggregated across runs)
-      - summary_baseline_vs_FEC.csv               (combined comparison; columns include sampling_method, sampling_fraction, threshold)
-      - FEC_report_simple.html
+      - FEC/(withFake|noFake)/generation_stats_aggregated_FEC.csv   (if subfolders exist; otherwise FEC/...)
+      - FEC/(withFake|noFake)/summary_aggregated_FEC.csv            (if subfolders exist; otherwise FEC/...)
+      - summary_baseline_vs_FEC{_withFake|_noFake}.csv (if subfolders exist; otherwise summary_baseline_vs_FEC.csv)
+      - FEC_report_simple{_withFake|_noFake}.html (if subfolders exist; otherwise FEC_report_simple.html)
 """
 
 import argparse
@@ -1047,8 +1047,20 @@ def _build_combined_summary(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Simple baseline vs FEC report (same structure as FEC_report.py). Speedup = baseline total_time_sec / FEC total_time_fair_sec.")
-    parser.add_argument("experiment_root", type=str, help="Path to results_simple/<dataset>_Gen_<G>_Pop_<P>/ with 'baseline' and 'FEC' subdirs.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Simple baseline vs FEC report (same structure as FEC_report.py). "
+            "Speedup = baseline total_time_sec / FEC total_time_fair_sec (fair time excludes fake-hit evaluation)."
+        )
+    )
+    parser.add_argument(
+        "experiment_root",
+        type=str,
+        help=(
+            "Path to results_simple/<dataset>_Gen_<G>_Pop_<P>/ with 'baseline' and 'FEC' subdirs. "
+            "FEC can be either a single folder or have 'withFake' and/or 'noFake' subfolders."
+        ),
+    )
     args = parser.parse_args()
 
     root = Path(args.experiment_root)
@@ -1057,22 +1069,13 @@ def main() -> None:
     if not baseline_dir.is_dir() or not fec_dir.is_dir():
         raise SystemExit(f"Need 'baseline' and 'FEC' under {root}")
 
+    # Baseline is shared across any FEC subfolders.
     print("Loading baseline CSVs ...")
     gen_all_base, sum_all_base = _load_baseline_csvs(baseline_dir)
-    print("Loading FEC CSVs ...")
-    gen_all_fec, sum_all_fec = _load_fec_csvs(fec_dir)
 
     print("Aggregating baseline ...")
     gen_agg_base = _aggregate_generation_stats(gen_all_base)
     sum_agg_base = _aggregate_summary_stats(sum_all_base)
-    print("Aggregating FEC ...")
-    gen_agg_fec = _aggregate_fec_generation_stats(gen_all_fec)
-    sum_agg_fec = _aggregate_fec_summary_stats(sum_all_fec)
-
-    methods = sorted(gen_agg_fec["mode"].dropna().unique().tolist())
-    thresholds, fractions_per_threshold = _get_thresholds_and_fractions(gen_agg_fec)
-    all_fractions = sorted(set(f for fracs in fractions_per_threshold.values() for f in fracs)) if fractions_per_threshold else []
-    summary_thresholds = _get_sorted_thresholds_from_summary(sum_agg_fec) or []
 
     # Aggregated evolution CSVs (per-generation metrics, mean/std across runs)
     gen_agg_base_path = baseline_dir / "generation_stats_aggregated.csv"
@@ -1083,96 +1086,135 @@ def main() -> None:
     sum_agg_base.to_csv(sum_agg_base_path, index=False)
     print(f"Saved {sum_agg_base_path}")
 
-    gen_agg_fec_path = fec_dir / "generation_stats_aggregated_FEC.csv"
-    gen_agg_fec.to_csv(gen_agg_fec_path, index=False)
-    print(f"Saved {gen_agg_fec_path}")
-
-    sum_agg_fec_path = fec_dir / "summary_aggregated_FEC.csv"
-    sum_agg_fec.to_csv(sum_agg_fec_path, index=False)
-    print(f"Saved {sum_agg_fec_path}")
-
     # Reload aggregated evolution CSVs for charting (ensures charts use exact same data as CSV; fixes dtype/JSON issues)
     gen_agg_base = pd.read_csv(gen_agg_base_path)
-    gen_agg_fec = pd.read_csv(gen_agg_fec_path)
-    if "sample_fraction" in gen_agg_fec.columns:
-        gen_agg_fec["sample_fraction"] = gen_agg_fec["sample_fraction"].astype(float)
-    if "fake_hit_threshold" in gen_agg_fec.columns:
-        gen_agg_fec["fake_hit_threshold"] = pd.to_numeric(gen_agg_fec["fake_hit_threshold"], errors="coerce")
 
-    # Combined summary CSV (speedup = baseline_time / FEC_total_time_fair_sec; speedup_pvalue from t-test)
-    combined = _build_combined_summary(
-        sum_agg_base, sum_agg_fec,
-        sum_all_base=sum_all_base, sum_all_fec=sum_all_fec,
-    )
-    if not combined.empty:
-        combined.to_csv(root / "summary_baseline_vs_FEC.csv", index=False)
-        print(f"Saved {root / 'summary_baseline_vs_FEC.csv'}")
+    fec_subdirs: list[tuple[Path, str]] = []
+    with_fake = fec_dir / "withFake"
+    no_fake = fec_dir / "noFake"
+    if with_fake.is_dir():
+        fec_subdirs.append((with_fake, "withFake"))
+    if no_fake.is_dir():
+        fec_subdirs.append((no_fake, "noFake"))
+    if not fec_subdirs:
+        # Legacy layout: fec_dir itself is the data root.
+        fec_subdirs = [(fec_dir, "")]
 
-    # HTML: Summary table then aggregated evolution, then per threshold/fraction, then across-fraction/threshold
-    sections = []
-    sections.append("<h2>Aggregated evolution (training and test by fraction and threshold)</h2>")
-    sections.append("<p>Mean across runs; each line is one (fraction, threshold) configuration.</p>")
-    sections.extend(_build_aggregated_evolution_figs(gen_agg_base, gen_agg_fec, methods, thresholds, fractions_per_threshold))
+    # Backward-compatibility: if only one of the two modes exists, keep legacy output filenames.
+    use_legacy_output_names = (len(fec_subdirs) == 1) and (fec_subdirs[0][1] in ("withFake", "noFake"))
 
-    sections.append("<h2>Training and test MAE per threshold and fraction</h2>")
-    for th in thresholds:
-        th_label = _format_threshold_label(th)
-        sections.append(f"<h3>Threshold {th_label}</h3>")
-        for frac in fractions_per_threshold.get(th, []):
-            sections.append(f"<h4>Fraction {frac:.0%}</h4>")
-            sections.extend(_build_training_and_test_figs(gen_agg_base, gen_agg_fec, th, frac, methods))
+    for one_fec_dir, sub_name in fec_subdirs:
+        label_suffix = "" if use_legacy_output_names else (f"_{sub_name}" if sub_name else "")
+        print(f"\n=== Report for FEC={sub_name or 'legacy'} ===")
 
-    sections.append("<h2>Across fractions</h2>")
-    sections.extend(_build_cross_fraction_figs(sum_agg_fec, sum_agg_base, all_fractions, methods))
+        print("Loading FEC CSVs ...")
+        gen_all_fec, sum_all_fec = _load_fec_csvs(one_fec_dir)
 
-    if summary_thresholds:
-        sections.append("<h2>Across thresholds</h2>")
-        sections.extend(_build_cross_threshold_figs(sum_agg_fec, sum_agg_base, summary_thresholds, methods, all_fractions))
-        sections.append("<h2>Speedup heatmaps (fraction × threshold)</h2>")
-        sections.extend(_build_speedup_heatmaps(sum_agg_fec, sum_agg_base, methods, all_fractions, summary_thresholds, combined))
-        sections.append("<h2>Hit-rate and fake-hit-rate heatmaps (fraction × threshold)</h2>")
-        sections.extend(_build_hit_and_fake_heatmaps(sum_agg_fec, methods, all_fractions, summary_thresholds))
+        print("Aggregating FEC ...")
+        gen_agg_fec = _aggregate_fec_generation_stats(gen_all_fec)
+        sum_agg_fec = _aggregate_fec_summary_stats(sum_all_fec)
 
-    # Prepare summary table HTML, bolding p-values < 0.05
-    if not combined.empty:
-        combined_display = combined.copy()
-        # Format numeric columns to short strings for display
-        for col in combined_display.columns:
-            if np.issubdtype(combined_display[col].dtype, np.number):
-                combined_display[col] = combined_display[col].map(
-                    lambda v: "" if pd.isna(v) else f"{float(v):.5g}"
-                )
-        # Bold significant p-values
-        for pcol in ["speedup_pvalue", "mae_pvalue"]:
-            if pcol in combined_display.columns:
-                def _bold_if_sig(val: str) -> str:
-                    if val == "":
-                        return val
-                    try:
-                        v = float(val)
-                    except (TypeError, ValueError):
-                        return val
-                    return f"<b>{val}</b>" if v < 0.05 else val
-                combined_display[pcol] = combined_display[pcol].map(_bold_if_sig)
-        summary_html = combined_display.to_html(index=False, escape=False)
-    else:
-        summary_html = "<p>No data.</p>"
+        methods = sorted(gen_agg_fec["mode"].dropna().unique().tolist())
+        thresholds, fractions_per_threshold = _get_thresholds_and_fractions(gen_agg_fec)
+        all_fractions = (
+            sorted(set(f for fracs in fractions_per_threshold.values() for f in fracs))
+            if fractions_per_threshold else []
+        )
+        summary_thresholds = _get_sorted_thresholds_from_summary(sum_agg_fec) or []
 
-    html = (
-        "<html><head><meta charset='utf-8' /><title>Baseline vs FEC (Simple Pipeline Report)</title>"
-        "<script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script></head><body>"
-        "<h1>Baseline vs FEC (Simple Pipeline Report)</h1>"
-        "<p>Speedup = baseline total_time_sec / FEC total_time_fair_sec (fair time excludes fake-hit evaluation). "
-        "speedup_pvalue: one-sided t-test on runtime (H1: baseline mean time &gt; FEC mean time); p &lt; 0.05 indicates significant speedup. "
-        "mae_pvalue: two-sided t-test on final test MAE; p &lt; 0.05 indicates a statistically significant difference in test fitness.</p>"
-        "<h2>Summary table</h2>"
-        + summary_html
-        + "".join(sections)
-        + "</body></html>"
-    )
-    html_path = root / "FEC_report_simple.html"
-    html_path.write_text(html, encoding="utf-8")
-    print(f"Saved {html_path}")
+        # Aggregated evolution CSVs (per-generation metrics, mean/std across runs)
+        gen_agg_fec_path = one_fec_dir / "generation_stats_aggregated_FEC.csv"
+        gen_agg_fec.to_csv(gen_agg_fec_path, index=False)
+        print(f"Saved {gen_agg_fec_path}")
+
+        sum_agg_fec_path = one_fec_dir / "summary_aggregated_FEC.csv"
+        sum_agg_fec.to_csv(sum_agg_fec_path, index=False)
+        print(f"Saved {sum_agg_fec_path}")
+
+        # Reload aggregated evolution CSVs for charting (ensures charts use exact same data as CSV; fixes dtype/JSON issues)
+        gen_agg_fec = pd.read_csv(gen_agg_fec_path)
+        if "sample_fraction" in gen_agg_fec.columns:
+            gen_agg_fec["sample_fraction"] = gen_agg_fec["sample_fraction"].astype(float)
+        if "fake_hit_threshold" in gen_agg_fec.columns:
+            gen_agg_fec["fake_hit_threshold"] = pd.to_numeric(gen_agg_fec["fake_hit_threshold"], errors="coerce")
+
+        # Combined summary CSV (speedup = baseline_time / FEC_total_time_fair_sec; speedup_pvalue from t-test)
+        combined = _build_combined_summary(
+            sum_agg_base, sum_agg_fec,
+            sum_all_base=sum_all_base, sum_all_fec=sum_all_fec,
+        )
+        if not combined.empty:
+            combined_path = root / f"summary_baseline_vs_FEC{label_suffix}.csv"
+            combined.to_csv(combined_path, index=False)
+            print(f"Saved {combined_path}")
+
+        # HTML: Summary table then aggregated evolution, then per threshold/fraction, then across-fraction/threshold
+        sections = []
+        sections.append("<h2>Aggregated evolution (training and test by fraction and threshold)</h2>")
+        sections.append("<p>Mean across runs; each line is one (fraction, threshold) configuration.</p>")
+        sections.extend(_build_aggregated_evolution_figs(gen_agg_base, gen_agg_fec, methods, thresholds, fractions_per_threshold))
+
+        sections.append("<h2>Training and test MAE per threshold and fraction</h2>")
+        for th in thresholds:
+            th_label = _format_threshold_label(th)
+            sections.append(f"<h3>Threshold {th_label}</h3>")
+            for frac in fractions_per_threshold.get(th, []):
+                sections.append(f"<h4>Fraction {frac:.0%}</h4>")
+                sections.extend(_build_training_and_test_figs(gen_agg_base, gen_agg_fec, th, frac, methods))
+
+        sections.append("<h2>Across fractions</h2>")
+        sections.extend(_build_cross_fraction_figs(sum_agg_fec, sum_agg_base, all_fractions, methods))
+
+        if summary_thresholds:
+            sections.append("<h2>Across thresholds</h2>")
+            sections.extend(_build_cross_threshold_figs(sum_agg_fec, sum_agg_base, summary_thresholds, methods, all_fractions))
+            sections.append("<h2>Speedup heatmaps (fraction × threshold)</h2>")
+            sections.extend(_build_speedup_heatmaps(sum_agg_fec, sum_agg_base, methods, all_fractions, summary_thresholds, combined))
+            sections.append("<h2>Hit-rate and fake-hit-rate heatmaps (fraction × threshold)</h2>")
+            sections.extend(_build_hit_and_fake_heatmaps(sum_agg_fec, methods, all_fractions, summary_thresholds))
+
+        # Prepare summary table HTML, bolding p-values < 0.05
+        if not combined.empty:
+            combined_display = combined.copy()
+            # Format numeric columns to short strings for display
+            for col in combined_display.columns:
+                if np.issubdtype(combined_display[col].dtype, np.number):
+                    combined_display[col] = combined_display[col].map(
+                        lambda v: "" if pd.isna(v) else f"{float(v):.5g}"
+                    )
+            # Bold significant p-values
+            for pcol in ["speedup_pvalue", "mae_pvalue"]:
+                if pcol in combined_display.columns:
+                    def _bold_if_sig(val: str) -> str:
+                        if val == "":
+                            return val
+                        try:
+                            v = float(val)
+                        except (TypeError, ValueError):
+                            return val
+                        return f"<b>{val}</b>" if v < 0.05 else val
+                    combined_display[pcol] = combined_display[pcol].map(_bold_if_sig)
+            summary_html = combined_display.to_html(index=False, escape=False)
+        else:
+            summary_html = "<p>No data.</p>"
+
+        mode_suffix_text = f" ({sub_name})" if sub_name else ""
+        html = (
+            "<html><head><meta charset='utf-8' /><title>Baseline vs FEC (Simple Pipeline Report)</title>"
+            "<script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script></head><body>"
+            "<h1>Baseline vs FEC (Simple Pipeline Report)</h1>"
+            f"<p><b>FEC mode:</b> {sub_name or 'legacy'}{mode_suffix_text}.</p>"
+            "<p>Speedup = baseline total_time_sec / FEC total_time_fair_sec (fair time excludes fake-hit evaluation). "
+            "speedup_pvalue: one-sided t-test on runtime (H1: baseline mean time &gt; FEC mean time); p &lt; 0.05 indicates significant speedup. "
+            "mae_pvalue: two-sided t-test on final test MAE; p &lt; 0.05 indicates a statistically significant difference in test fitness.</p>"
+            "<h2>Summary table</h2>"
+            + summary_html
+            + "".join(sections)
+            + "</body></html>"
+        )
+        html_path = root / f"FEC_report_simple{label_suffix}.html"
+        html_path.write_text(html, encoding="utf-8")
+        print(f"Saved {html_path}")
 
 
 if __name__ == "__main__":

@@ -12,8 +12,8 @@ from typing import Dict
 
 CONFIG_FEC_SIMPLE: Dict[str, object] = {
     # --- Dataset inputs -----------------------------------------------------
-    "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
-    "dataset.label_column": "diagnosis",
+    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
+    "dataset.label_column": "RFS_Status",
     "dataset.sample_fraction": None,
     "dataset.test_size": 0.2,
 
@@ -21,9 +21,9 @@ CONFIG_FEC_SIMPLE: Dict[str, object] = {
     "grammar.file": "heartDisease.bnf",
 
     # --- Evolution loop parameters ------------------------------------------
-    "evolution.population": 100,
-    "evolution.generations": 10,
-    "evolution.random_seed": 42,  # will be overwritten per run
+    "evolution.population": 1000,
+    "evolution.generations": 50,
+    "evolution.random_seed": 30,  # will be overwritten per run
 
     # --- GA operator tuning -------------------------------------------------
     "ga_parameters.p_crossover": 0.8,
@@ -73,6 +73,15 @@ CONFIG_FEC_SIMPLE: Dict[str, object] = {
     "fec.evaluate_fake_hits": False,
     "fec.record_detailed_events": False,
     "fec.fake_hit_threshold": 1e-5,
+
+    # --- Cache key choice (simple pipeline) ----------------------------------
+    # Python dict is already a hash table; we always use it as the backend.
+    # This knob controls how the key is built:
+    #   - "behavior_repr": large repr() of behaviour key (slow/large, legacy)
+    #   - "behavior_hash": hash of behaviour bytes (recommended)
+    #   - "phenotype": exact individual.phenotype string
+    #   - "phenotype_hash": hash of phenotype string
+    "fec.cache_key": "behavior_hash",
 
     # --- Output controls (no extra overhead) --------------------------------
     "output.plot": False,

@@ -22,6 +22,8 @@ __pycache__/
 ############################
 results/*
 results/**/*
-!results/**/*.html
-!results/**/*summary*.csv
+results/**/*.html
+results/**/*summary*.csv
 
+results/result_archive.zip
+results/result_archive.zip

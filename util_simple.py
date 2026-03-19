@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -89,21 +90,51 @@ def prepare_toolbox(cfg: Dict[str, Any], operators: Dict[str, Any], grammar: gra
 
 class SimpleFECCache:
     def __init__(self) -> None:
-        self.cache: Dict[str, float] = {}
+        # Simple in-memory hash table (Python dict)
+        self.cache: Dict[object, float] = {}
         self.hits = 0
         self.misses = 0
         self.fake_hits = 0
         self.fake_eval_time_sec = 0.0
 
-    def lookup(self, key: str) -> Tuple[bool, float]:
+    def lookup(self, key: object) -> Tuple[bool, float]:
         if key in self.cache:
             self.hits += 1
             return True, self.cache[key]
         self.misses += 1
         return False, 0.0
 
-    def store(self, key: str, fitness: float) -> None:
+    def store(self, key: object, fitness: float) -> None:
         self.cache[key] = fitness
+
+
+def _hash_key_bytes(data: bytes) -> str:
+    """Stable small key for caching (faster and smaller than repr())."""
+    return hashlib.blake2b(data, digest_size=16).hexdigest()
+
+
+def _make_cache_key(
+    key_mode: str,
+    *,
+    individual: Any,
+    pred_sample: np.ndarray,
+    centroid_y: np.ndarray,
+) -> object:
+    km = str(key_mode or "behavior_hash").lower()
+    if km == "phenotype":
+        return str(getattr(individual, "phenotype", ""))
+    if km == "phenotype_hash":
+        return _hash_key_bytes(str(getattr(individual, "phenotype", "")).encode("utf-8", errors="ignore"))
+
+    # Behaviour-based key (default)
+    # Round predictions for stability then hash the bytes.
+    pred_r = np.round(np.asarray(pred_sample, dtype=np.float64), 6)
+    y_b = np.asarray(centroid_y, dtype=np.int64)
+    if km == "behavior_repr":
+        return repr((tuple(pred_r.tolist()), tuple(y_b.tolist())))
+    # behavior_hash
+    payload = pred_r.tobytes() + b"|" + y_b.tobytes()
+    return _hash_key_bytes(payload)
 
 
 def create_fec_fitness(
@@ -113,6 +144,7 @@ def create_fec_fitness(
     cache: SimpleFECCache,
     evaluate_fake_hits: bool,
     fake_hit_threshold: float,
+    cache_key: str = "behavior_hash",
 ) -> Any:
     def fitness_eval(individual: Any, points: Sequence[np.ndarray], dataset_type: str = "train") -> Tuple[float]:
         x = np.asarray(points[0], dtype=np.float64)
@@ -133,7 +165,12 @@ def create_fec_fitness(
         pred_sample = np.asarray(pred_sample, dtype=np.float64).flatten()
         if pred_sample.shape[0] != centroid_y.shape[0]:
             return (float("nan"),)
-        key = repr((tuple(np.round(pred_sample, 6)), tuple(centroid_y.tolist())))
+        key = _make_cache_key(
+            cache_key,
+            individual=individual,
+            pred_sample=pred_sample,
+            centroid_y=centroid_y,
+        )
 
         use_cache = is_training and cache is not None
         hit = False
@@ -297,6 +334,7 @@ def run_fec_experiment_simple(
         cache=cache,
         evaluate_fake_hits=bool(cfg.get("fec.evaluate_fake_hits", False)),
         fake_hit_threshold=float(cfg.get("fec.fake_hit_threshold", 1e-5)),
+        cache_key=str(cfg.get("fec.cache_key", "behavior_hash")),
     )
     toolbox.register("evaluate", eval_fn)
 

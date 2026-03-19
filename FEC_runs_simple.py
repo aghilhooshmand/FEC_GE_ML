@@ -6,13 +6,13 @@ Minimal FEC runner for fair runtime comparison.
 This script mirrors baseline_runs_simple.py but enables caching:
   - Same GE pipeline.
   - FEC is enabled (behaviour-only key).
-  - Fake-hit analysis and detailed event logging are turned OFF.
+  - Fake-hit analysis is controlled by `fec.evaluate_fake_hits` (overridable via `--evaluate-fake-hits`).
   - Measures:
       * total_time_sec          = sum of generation_time from the logbook
       * total_wall_time_sec     = wall-clock time around the whole experiment
 
 Outputs go under:
-  results_simple/<dataset>_Gen_<G>_Pop_<P>/FEC/
+  results_simple/<dataset>_Gen_<G>_Pop_<P>/FEC/<withFake|noFake>/
     generation_stats_<method>_frac_<p>_run<run>.csv
     summary_<method>_frac_<p>_run<run>.csv
 """
@@ -51,6 +51,7 @@ def _run_one_fec_simple(
     sample_fraction: float,
     sampling_method: str,
     fake_hit_threshold: float,
+    evaluate_fake_hits: bool,
     experiment_dir: Path,
 ) -> None:
     """Run a single FEC-enabled experiment for one sampling method and fraction (simple, no extra analysis)."""
@@ -62,6 +63,7 @@ def _run_one_fec_simple(
     cfg["fec.sampling_method"] = sampling_method
     cfg["fec.sample_fraction"] = float(sample_fraction)
     cfg["fec.fake_hit_threshold"] = float(fake_hit_threshold)
+    cfg["fec.evaluate_fake_hits"] = bool(evaluate_fake_hits)
 
     X, y = load_dataset(cfg)
     operators = load_operators(Path("operators"))
@@ -203,6 +205,14 @@ def main() -> None:
             "recorded for analysis and filenames only)."
         ),
     )
+    parser.add_argument(
+        "--evaluate-fake-hits",
+        action="store_true",
+        help=(
+            "Enable fake-hit analysis (extra full evals on cache hits). "
+            "When not set, caching is used without re-evaluating hits."
+        ),
+    )
     args = parser.parse_args()
 
     run_index = args.run_index
@@ -210,6 +220,10 @@ def main() -> None:
     sample_fraction = float(args.sample_fraction)
     sampling_method = args.sampling_method.strip()
     fake_hit_threshold = float(args.fake_hit_threshold)
+    # Default follows config; flag forces it ON.
+    evaluate_fake_hits = bool(CONFIG_FEC_SIMPLE.get("fec.evaluate_fake_hits", False))
+    if args.evaluate_fake_hits:
+        evaluate_fake_hits = True
 
     if run_index < 1:
         raise SystemExit("run-index must be >= 1")
@@ -224,7 +238,8 @@ def main() -> None:
 
     # Root for simple comparison: results_simple/<dataset>_Gen_<G>_Pop_<P>/FEC/
     results_root = Path("results_simple") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"
-    experiment_dir = results_root / "FEC"
+    fake_dir = "withFake" if evaluate_fake_hits else "noFake"
+    experiment_dir = results_root / "FEC" / fake_dir
     experiment_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"FEC_simple experiment directory: {experiment_dir}")
@@ -235,6 +250,7 @@ def main() -> None:
         sample_fraction=sample_fraction,
         sampling_method=sampling_method,
         fake_hit_threshold=fake_hit_threshold,
+        evaluate_fake_hits=evaluate_fake_hits,
         experiment_dir=experiment_dir,
     )
 

@@ -123,8 +123,8 @@ def main() -> None:
     parser.add_argument(
         "--base-seed",
         type=int,
-        default=42,
-        help="Base RNG seed; run_seed = base_seed + (run_index-1).",
+        default=int(CONFIG_BASELINE_SIMPLE.get("evolution.random_seed", 42)),
+        help="Base RNG seed (defaults from config); run_seed = base_seed + (run_index-1).",
     )
     args = parser.parse_args()
 
