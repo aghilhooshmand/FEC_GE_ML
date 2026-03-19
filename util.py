@@ -372,6 +372,28 @@ def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
         label_col = df.columns[-1]
     cfg["dataset.label_column"] = str(label_col)
 
+    # Optional dataset balancing ("SMOTH" = simple oversampling)
+    # Apply before any subsampling (dataset.sample_fraction) so class balance
+    # is respected throughout the pipeline.
+    if bool(cfg.get("dataset.smoth_balance", False)):
+        y_all = df[label_col].astype(int)
+        classes, counts = np.unique(y_all, return_counts=True)
+        if classes.size == 2:
+            maj_class = int(classes[np.argmax(counts)])
+            min_class = int(classes[np.argmin(counts)])
+            n_target = int(counts.max())
+            n_min = int(counts.min())
+            if n_min < n_target:
+                rng = np.random.default_rng(int(cfg.get("evolution.random_seed", 42)))
+                pos = np.arange(len(df))
+                pos_min = pos[y_all == min_class]
+                # Duplicate minority rows until minority count matches the majority.
+                n_to_add = n_target - n_min
+                add_pos = rng.choice(pos_min, size=n_to_add, replace=True)
+                new_pos = np.concatenate([pos, add_pos])
+                perm = rng.permutation(new_pos.shape[0])
+                df = df.iloc[new_pos[perm]].reset_index(drop=True)
+
     # Optional stratified subsampling (preserve class ratio, use a fraction of rows)
     sample_fraction = cfg.get("dataset.sample_fraction")
     if sample_fraction is not None:
