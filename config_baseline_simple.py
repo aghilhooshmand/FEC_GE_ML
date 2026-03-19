@@ -20,7 +20,7 @@ CONFIG_BASELINE_SIMPLE: Dict[str, object] = {
     # --- Optional balancing ("SMOTH") -------------------------------------
     # If True, oversample the minority class (binary labels) before any split
     # to make the dataset class-balanced.
-    "dataset.smoth_balance": True,
+    "dataset.smoth_balance": False,
 
     # --- Grammar configuration ----------------------------------------------
     "grammar.file": "heartDisease.bnf",
