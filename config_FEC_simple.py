@@ -12,8 +12,8 @@ from typing import Dict
 
 CONFIG_FEC_SIMPLE: Dict[str, object] = {
     # --- Dataset inputs -----------------------------------------------------
-    "dataset.file": "clinical_breast_cancer_RFC_preprocessed.csv",
-    "dataset.label_column": "RFS_Status",
+    "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
+    "dataset.label_column": "diagnosis",
     "dataset.sample_fraction": None,
     "dataset.test_size": 0.2,
     # --- Optional balancing ("SMOTH") -------------------------------------

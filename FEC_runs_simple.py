@@ -233,6 +233,8 @@ def main() -> None:
         raise SystemExit(f"sampling-method must be one of {sorted(VALID_SAMPLING_METHODS)}.")
 
     dataset_stem = Path(CONFIG_FEC_SIMPLE.get("dataset.file", "data")).stem
+    if bool(CONFIG_FEC_SIMPLE.get("dataset.smoth_balance", False)):
+        dataset_stem = f"{dataset_stem}_SMOTH"
     n_gen = CONFIG_FEC_SIMPLE.get("evolution.generations", 0)
     pop = CONFIG_FEC_SIMPLE.get("evolution.population", 0)
 

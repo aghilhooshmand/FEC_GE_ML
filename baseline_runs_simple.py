@@ -134,6 +134,8 @@ def main() -> None:
         raise SystemExit("run-index must be >= 1")
 
     dataset_stem = Path(str(CONFIG_BASELINE_SIMPLE.get("dataset.file", "data"))).stem
+    if bool(CONFIG_BASELINE_SIMPLE.get("dataset.smoth_balance", False)):
+        dataset_stem = f"{dataset_stem}_SMOTH"
     n_gen = int(CONFIG_BASELINE_SIMPLE.get("evolution.generations", 0))
     pop = int(CONFIG_BASELINE_SIMPLE.get("evolution.population", 0))
 
