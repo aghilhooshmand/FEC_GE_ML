@@ -81,6 +81,25 @@ def main() -> None:
 
     # Drop rows with missing values in any column
     df = df.dropna().reset_index(drop=True)
+    df = df.drop_duplicates().reset_index(drop=True)
+
+    # Convert all categorical feature columns to numeric via one-hot encoding.
+    # Keep income as the label column.
+    categorical_cols = [c for c in df.columns if c != "income" and df[c].dtype == "object"]
+    if categorical_cols:
+        df = pd.get_dummies(df, columns=categorical_cols, dtype=int)
+
+    # Standard preprocessing: z-score standardization for numeric features.
+    # Exclude the label column from scaling.
+    feature_cols = [c for c in df.columns if c != "income"]
+    numeric_feature_cols = [c for c in feature_cols if pd.api.types.is_numeric_dtype(df[c])]
+    if numeric_feature_cols:
+        means = df[numeric_feature_cols].mean()
+        stds = df[numeric_feature_cols].std(ddof=0).replace(0, 1.0)
+        df[numeric_feature_cols] = (df[numeric_feature_cols] - means) / stds
+
+    # Ensure label dtype is integer after mapping/cleaning.
+    df["income"] = df["income"].astype(int)
 
     df.to_csv(OUTPUT_PATH, index=False)
     print(f"Saved prepared CSV to: {OUTPUT_PATH}")
