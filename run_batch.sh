@@ -25,7 +25,7 @@ FEC_FRACTIONS=(0.1 0.2 0.3)
 FEC_FAKE_HIT_THRESHOLDS=(0)
 # Run both modes:
 # false -> noFake folder, true -> withFake folder
-FEC_EVALUATE_FAKE_MODES=("false")
+FEC_EVALUATE_FAKE_MODES=("true")
 
 # Datasets come from config.json DATA object as "file|label" lines.
 mapfile -t DATASETS < <(python3 - <<'PY'
