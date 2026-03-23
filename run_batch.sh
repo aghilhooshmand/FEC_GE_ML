@@ -17,8 +17,8 @@ export NUMEXPR_NUM_THREADS=1
 # If true: each launched process is pinned to one core (round-robin).
 CPU_PINNING_ENABLED=true
 # You can use ranges and commas, e.g. "0-39" or "0-19,40-59".
-BASELINE_CORE_RANGE="0-39"
-FEC_CORE_RANGE="40-79"
+BASELINE_CORE_RANGE="0-4"
+FEC_CORE_RANGE="5-9"
 
 # ----------------------- Baseline batch config -----------------------
 BASELINE_NUM_RUNS=10
@@ -105,12 +105,17 @@ run_baseline_batch() {
 }
 
 
-run_fec_batch() {
+run_fec_config_batch() {
   local dataset_file="$1"
   local label_col="$2"
-  echo "=== FEC batch: dataset=${dataset_file}, label=${label_col}, runs_per_config=${FEC_RUNS_PER_CONFIG}, max_parallel=${FEC_MAX_PARALLEL} ==="
+  local mode="$3"
+  local method="$4"
+  local frac="$5"
+  local th="$6"
+
+  echo "=== FEC config batch: dataset=${dataset_file}, label=${label_col}, mode=${mode}, method=${method}, frac=${frac}, th=${th}, runs=${FEC_RUNS_PER_CONFIG}, max_parallel=${FEC_MAX_PARALLEL} ==="
   local active=0
-  local mode method frac th i
+  local i
   local core_idx=0
   local core=""
   local -a fec_cores=()
@@ -121,71 +126,62 @@ run_fec_batch() {
       exit 1
     fi
   fi
-  for mode in "${FEC_EVALUATE_FAKE_MODES[@]}"; do
-    for method in "${FEC_SAMPLING_METHODS[@]}"; do
-      for frac in "${FEC_FRACTIONS[@]}"; do
-        for th in "${FEC_FAKE_HIT_THRESHOLDS[@]}"; do
-          echo "  --- FEC config: dataset=${dataset_file}, label=${label_col}, mode=${mode}, method=${method}, frac=${frac}, th=${th}"
-          for ((i=1; i<=FEC_RUNS_PER_CONFIG; i++)); do
-            if (( active >= FEC_MAX_PARALLEL )); then
-              wait -n
-              active=$((active-1))
-            fi
-            if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
-              core="${fec_cores[$((core_idx % ${#fec_cores[@]}))]}"
-              core_idx=$((core_idx+1))
-            fi
-            if [[ "${mode}" == "true" ]]; then
-              if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
-                echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th} --evaluate-fake-hits"
-                taskset -c "${core}" python3 FEC_runs_simple.py \
-                  --run-index "${i}" \
-                  --dataset-file "${dataset_file}" \
-                  --label-column "${label_col}" \
-                  --sample-fraction "${frac}" \
-                  --sampling-method "${method}" \
-                  --fake-hit-threshold "${th}" \
-                  --evaluate-fake-hits &
-              else
-                echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th} --evaluate-fake-hits"
-                python3 FEC_runs_simple.py \
-                  --run-index "${i}" \
-                  --dataset-file "${dataset_file}" \
-                  --label-column "${label_col}" \
-                  --sample-fraction "${frac}" \
-                  --sampling-method "${method}" \
-                  --fake-hit-threshold "${th}" \
-                  --evaluate-fake-hits &
-              fi
-            else
-              if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
-                echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th}"
-                taskset -c "${core}" python3 FEC_runs_simple.py \
-                  --run-index "${i}" \
-                  --dataset-file "${dataset_file}" \
-                  --label-column "${label_col}" \
-                  --sample-fraction "${frac}" \
-                  --sampling-method "${method}" \
-                  --fake-hit-threshold "${th}" &
-              else
-                echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th}"
-                python3 FEC_runs_simple.py \
-                  --run-index "${i}" \
-                  --dataset-file "${dataset_file}" \
-                  --label-column "${label_col}" \
-                  --sample-fraction "${frac}" \
-                  --sampling-method "${method}" \
-                  --fake-hit-threshold "${th}" &
-              fi
-            fi
-            active=$((active+1))
-          done
-        done
-      done
-    done
+  for ((i=1; i<=FEC_RUNS_PER_CONFIG; i++)); do
+    if (( active >= FEC_MAX_PARALLEL )); then
+      wait -n
+      active=$((active-1))
+    fi
+    if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
+      core="${fec_cores[$((core_idx % ${#fec_cores[@]}))]}"
+      core_idx=$((core_idx+1))
+    fi
+    if [[ "${mode}" == "true" ]]; then
+      if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
+        echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th} --evaluate-fake-hits"
+        taskset -c "${core}" python3 FEC_runs_simple.py \
+          --run-index "${i}" \
+          --dataset-file "${dataset_file}" \
+          --label-column "${label_col}" \
+          --sample-fraction "${frac}" \
+          --sampling-method "${method}" \
+          --fake-hit-threshold "${th}" \
+          --evaluate-fake-hits &
+      else
+        echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th} --evaluate-fake-hits"
+        python3 FEC_runs_simple.py \
+          --run-index "${i}" \
+          --dataset-file "${dataset_file}" \
+          --label-column "${label_col}" \
+          --sample-fraction "${frac}" \
+          --sampling-method "${method}" \
+          --fake-hit-threshold "${th}" \
+          --evaluate-fake-hits &
+      fi
+    else
+      if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
+        echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th}"
+        taskset -c "${core}" python3 FEC_runs_simple.py \
+          --run-index "${i}" \
+          --dataset-file "${dataset_file}" \
+          --label-column "${label_col}" \
+          --sample-fraction "${frac}" \
+          --sampling-method "${method}" \
+          --fake-hit-threshold "${th}" &
+      else
+        echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th}"
+        python3 FEC_runs_simple.py \
+          --run-index "${i}" \
+          --dataset-file "${dataset_file}" \
+          --label-column "${label_col}" \
+          --sample-fraction "${frac}" \
+          --sampling-method "${method}" \
+          --fake-hit-threshold "${th}" &
+      fi
+    fi
+    active=$((active+1))
   done
   wait
-  echo "=== FEC batch finished ==="
+  echo "=== FEC config batch finished ==="
 }
 
 
@@ -199,15 +195,23 @@ for item in "${DATASETS[@]}"; do
   echo
   echo "### Dataset loop: file=${dataset_file} label=${label_col}"
 
-  # Run both pipelines in parallel for this dataset.
-  run_baseline_batch "${dataset_file}" "${label_col}" &
-  pid_baseline=$!
+  # Baseline runs once per dataset.
+  echo
+  echo "### Baseline run (once for dataset)"
+  run_baseline_batch "${dataset_file}" "${label_col}"
 
-  run_fec_batch "${dataset_file}" "${label_col}" &
-  pid_fec=$!
-
-  wait "${pid_baseline}"
-  wait "${pid_fec}"
+  # Then run all FEC configs for this dataset.
+  for mode in "${FEC_EVALUATE_FAKE_MODES[@]}"; do
+    for method in "${FEC_SAMPLING_METHODS[@]}"; do
+      for frac in "${FEC_FRACTIONS[@]}"; do
+        for th in "${FEC_FAKE_HIT_THRESHOLDS[@]}"; do
+          echo
+          echo "### FEC config run (mode=${mode}, method=${method}, frac=${frac}, th=${th})"
+          run_fec_config_batch "${dataset_file}" "${label_col}" "${mode}" "${method}" "${frac}" "${th}"
+        done
+      done
+    done
+  done
 done
 
 echo
