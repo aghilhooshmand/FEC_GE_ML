@@ -16,6 +16,7 @@ Outputs go under:
 """
 
 import argparse
+import json
 import time
 from pathlib import Path
 from typing import Dict
@@ -24,7 +25,6 @@ import numpy as np
 import pandas as pd
 import grape.grape as grape
 
-from config_baseline_simple import CONFIG_BASELINE_SIMPLE
 from util_simple import (
     SimpleExperimentResult,
     load_dataset,
@@ -32,14 +32,24 @@ from util_simple import (
     run_baseline_experiment_simple,
 )
 
+CONFIG_JSON_PATH = Path(__file__).with_name("config.json")
+
+
+def _load_config_baseline() -> Dict[str, object]:
+    payload = json.loads(CONFIG_JSON_PATH.read_text(encoding="utf-8"))
+    common = dict(payload.get("COMMON_CONFIG", {}))
+    baseline_only = dict(payload.get("BASELINE_SPECIFIC_CONFIG", {}))
+    return {**common, **baseline_only}
+
 
 def _run_one_baseline(
     run_index: int,
     seed: int,
+    cfg_template: Dict[str, object],
     experiment_dir: Path,
 ) -> None:
     """Run a single baseline experiment (no FEC) with a given seed."""
-    cfg = CONFIG_BASELINE_SIMPLE.copy()
+    cfg = cfg_template.copy()
     cfg["evolution.random_seed"] = seed
 
     X, y = load_dataset(cfg)
@@ -123,21 +133,38 @@ def main() -> None:
     parser.add_argument(
         "--base-seed",
         type=int,
-        default=int(CONFIG_BASELINE_SIMPLE.get("evolution.random_seed", 42)),
+        default=None,
         help="Base RNG seed (defaults from config); run_seed = base_seed + (run_index-1).",
+    )
+    parser.add_argument(
+        "--dataset-file",
+        type=str,
+        default=None,
+        help="Optional dataset CSV filename under ./data to override config default.",
+    )
+    parser.add_argument(
+        "--label-column",
+        type=str,
+        default=None,
+        help="Optional label column name to override config default.",
     )
     args = parser.parse_args()
 
+    cfg = _load_config_baseline()
     run_index = args.run_index
-    base_seed = args.base_seed
+    base_seed = int(cfg.get("evolution.random_seed", 42)) if args.base_seed is None else int(args.base_seed)
+    if args.dataset_file:
+        cfg["dataset.file"] = args.dataset_file
+    if args.label_column:
+        cfg["dataset.label_column"] = args.label_column
     if run_index < 1:
         raise SystemExit("run-index must be >= 1")
 
-    dataset_stem = Path(str(CONFIG_BASELINE_SIMPLE.get("dataset.file", "data"))).stem
-    if bool(CONFIG_BASELINE_SIMPLE.get("dataset.smoth_balance", False)):
+    dataset_stem = Path(str(cfg.get("dataset.file", "data"))).stem
+    if bool(cfg.get("dataset.smoth_balance", False)):
         dataset_stem = f"{dataset_stem}_SMOTH"
-    n_gen = int(CONFIG_BASELINE_SIMPLE.get("evolution.generations", 0))
-    pop = int(CONFIG_BASELINE_SIMPLE.get("evolution.population", 0))
+    n_gen = int(cfg.get("evolution.generations", 0))
+    pop = int(cfg.get("evolution.population", 0))
 
     # Root for simple comparison: results_simple/<dataset>_Gen_<G>_Pop_<P>/baseline/
     results_root = Path("results_simple") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"
@@ -147,7 +174,7 @@ def main() -> None:
     print(f"Baseline_simple experiment directory: {experiment_dir}")
 
     seed = base_seed + (run_index - 1)
-    _run_one_baseline(run_index=run_index, seed=seed, experiment_dir=experiment_dir)
+    _run_one_baseline(run_index=run_index, seed=seed, cfg_template=cfg, experiment_dir=experiment_dir)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ Outputs go under:
 """
 
 import argparse
+import json
 import time
 from pathlib import Path
 from typing import Dict
@@ -26,13 +27,21 @@ import numpy as np
 import pandas as pd
 import grape.grape as grape
 
-from config_FEC_simple import CONFIG_FEC_SIMPLE
 from util_simple import (
     SimpleExperimentResult,
     load_dataset,
     load_operators,
     run_fec_experiment_simple,
 )
+
+CONFIG_JSON_PATH = Path(__file__).with_name("config.json")
+
+
+def _load_config_fec() -> Dict[str, object]:
+    payload = json.loads(CONFIG_JSON_PATH.read_text(encoding="utf-8"))
+    common = dict(payload.get("COMMON_CONFIG", {}))
+    fec_only = dict(payload.get("FEC_SPECIFIC_CONFIG", {}))
+    return {**common, **fec_only}
 
 
 VALID_SAMPLING_METHODS = {
@@ -52,13 +61,14 @@ def _run_one_fec_simple(
     sampling_method: str,
     fake_hit_threshold: float,
     evaluate_fake_hits: bool,
+    cfg_template: Dict[str, object],
     experiment_dir: Path,
 ) -> None:
     """Run a single FEC-enabled experiment for one sampling method and fraction (simple, no extra analysis)."""
     combo = (int(base_seed), int(run_index), str(sampling_method), float(sample_fraction))
     seed = abs(hash(combo)) % (2**31 - 1)
 
-    cfg = CONFIG_FEC_SIMPLE.copy()
+    cfg = cfg_template.copy()
     cfg["evolution.random_seed"] = seed
     cfg["fec.sampling_method"] = sampling_method
     cfg["fec.sample_fraction"] = float(sample_fraction)
@@ -181,7 +191,7 @@ def main() -> None:
     parser.add_argument(
         "--base-seed",
         type=int,
-        default=int(CONFIG_FEC_SIMPLE.get("evolution.random_seed", 42)),
+        default=None,
         help="Base RNG seed used together with run-index and sample fraction.",
     )
     parser.add_argument(
@@ -199,7 +209,7 @@ def main() -> None:
     parser.add_argument(
         "--fake-hit-threshold",
         type=float,
-        default=float(CONFIG_FEC_SIMPLE.get("fec.fake_hit_threshold", 1e-5)),
+        default=None,
         help=(
             "Fake-hit threshold parameter (no re-eval in simple mode, "
             "recorded for analysis and filenames only)."
@@ -213,17 +223,34 @@ def main() -> None:
             "When not set, caching is used without re-evaluating hits."
         ),
     )
+    parser.add_argument(
+        "--dataset-file",
+        type=str,
+        default=None,
+        help="Optional dataset CSV filename under ./data to override config default.",
+    )
+    parser.add_argument(
+        "--label-column",
+        type=str,
+        default=None,
+        help="Optional label column name to override config default.",
+    )
     args = parser.parse_args()
 
+    cfg = _load_config_fec()
     run_index = args.run_index
-    base_seed = args.base_seed
+    base_seed = int(cfg.get("evolution.random_seed", 42)) if args.base_seed is None else int(args.base_seed)
     sample_fraction = float(args.sample_fraction)
     sampling_method = args.sampling_method.strip()
-    fake_hit_threshold = float(args.fake_hit_threshold)
+    fake_hit_threshold = float(cfg.get("fec.fake_hit_threshold", 1e-5)) if args.fake_hit_threshold is None else float(args.fake_hit_threshold)
     # Default follows config; flag forces it ON.
-    evaluate_fake_hits = bool(CONFIG_FEC_SIMPLE.get("fec.evaluate_fake_hits", False))
+    evaluate_fake_hits = bool(cfg.get("fec.evaluate_fake_hits", False))
     if args.evaluate_fake_hits:
         evaluate_fake_hits = True
+    if args.dataset_file:
+        cfg["dataset.file"] = args.dataset_file
+    if args.label_column:
+        cfg["dataset.label_column"] = args.label_column
 
     if run_index < 1:
         raise SystemExit("run-index must be >= 1")
@@ -232,11 +259,11 @@ def main() -> None:
     if sampling_method not in VALID_SAMPLING_METHODS:
         raise SystemExit(f"sampling-method must be one of {sorted(VALID_SAMPLING_METHODS)}.")
 
-    dataset_stem = Path(CONFIG_FEC_SIMPLE.get("dataset.file", "data")).stem
-    if bool(CONFIG_FEC_SIMPLE.get("dataset.smoth_balance", False)):
+    dataset_stem = Path(cfg.get("dataset.file", "data")).stem
+    if bool(cfg.get("dataset.smoth_balance", False)):
         dataset_stem = f"{dataset_stem}_SMOTH"
-    n_gen = CONFIG_FEC_SIMPLE.get("evolution.generations", 0)
-    pop = CONFIG_FEC_SIMPLE.get("evolution.population", 0)
+    n_gen = cfg.get("evolution.generations", 0)
+    pop = cfg.get("evolution.population", 0)
 
     # Root for simple comparison: results_simple/<dataset>_Gen_<G>_Pop_<P>/FEC/
     results_root = Path("results_simple") / f"{dataset_stem}_Gen_{n_gen}_Pop_{pop}"
@@ -253,6 +280,7 @@ def main() -> None:
         sampling_method=sampling_method,
         fake_hit_threshold=fake_hit_threshold,
         evaluate_fake_hits=evaluate_fake_hits,
+        cfg_template=cfg,
         experiment_dir=experiment_dir,
     )
 

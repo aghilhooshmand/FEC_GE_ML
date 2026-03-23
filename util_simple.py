@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -12,8 +13,6 @@ from sklearn.model_selection import train_test_split
 
 import grape.grape as grape
 import grape.algorithms
-from util import load_dataset as _load_dataset  # reuse existing implementation
-from util import load_operators as _load_operators
 from sampling_methods import get_sampling_function
 
 
@@ -27,17 +26,82 @@ class SimpleExperimentResult:
 
 def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Load X, y from CSV (see ``util.load_dataset``).
-
-    Simple runners call this; implementation lives in ``util.py``, including
-    optional ``dataset.smoth_balance`` (one-time cached balanced CSV under
-    ``data/`` for all runs).
+    Self-contained dataset loader for the simple pipeline.
+    - Reads CSV from ./data/<dataset.file>
+    - Applies simple preprocessing (drop missing)
+    - Optional one-time simple oversampling (dataset.smoth_balance)
+    - Optional stratified subsampling (dataset.sample_fraction)
     """
-    return _load_dataset(cfg)
+    label_column = cfg.get("dataset.label_column")
+
+    data_dir = Path.cwd() / "data"
+    csv_path = data_dir / str(cfg["dataset.file"])
+
+    df = pd.read_csv(csv_path)
+    df = df.replace("?", np.nan).dropna(axis=0).reset_index(drop=True)
+
+    # Determine label column.
+    if label_column and label_column in df.columns:
+        label_col = str(label_column)
+    else:
+        label_col = str(df.columns[-1])
+    cfg["dataset.label_column"] = label_col
+
+    # Optional simple oversampling cache (kept for parity with prior behavior).
+    if bool(cfg.get("dataset.smoth_balance", False)):
+        smoth_out_path = data_dir / f"{Path(str(cfg['dataset.file'])).stem}_smoth_{label_col}.csv"
+        if smoth_out_path.exists():
+            df = pd.read_csv(smoth_out_path)
+            df = df.replace("?", np.nan).dropna(axis=0).reset_index(drop=True)
+        else:
+            y_all = df[label_col].astype(int)
+            classes, counts = np.unique(y_all, return_counts=True)
+            if classes.size == 2:
+                n_target = int(counts.max())
+                n_min = int(counts.min())
+                min_class = int(classes[np.argmin(counts)])
+                if n_min < n_target:
+                    rng = np.random.default_rng(42)
+                    pos = np.arange(len(df))
+                    pos_min = pos[y_all == min_class]
+                    n_to_add = n_target - n_min
+                    add_pos = rng.choice(pos_min, size=n_to_add, replace=True)
+                    new_pos = np.concatenate([pos, add_pos])
+                    perm = rng.permutation(new_pos.shape[0])
+                    df = df.iloc[new_pos[perm]].reset_index(drop=True)
+            smoth_out_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(smoth_out_path, index=False)
+
+    # Optional stratified subsampling.
+    sample_fraction = cfg.get("dataset.sample_fraction")
+    if sample_fraction is not None:
+        try:
+            frac = float(sample_fraction)
+        except (TypeError, ValueError):
+            frac = 1.0
+        if 0.0 < frac < 1.0:
+            y_all = df[label_col]
+            df, _ = train_test_split(
+                df,
+                train_size=frac,
+                stratify=y_all,
+                random_state=int(cfg.get("evolution.random_seed", 42)),
+            )
+
+    y = df[label_col].astype(int).to_numpy()
+    X = df.drop(columns=[label_col]).to_numpy(dtype=float)
+    return X, y
 
 
 def load_operators(operators_dir: Path) -> Dict[str, Any]:
-    return _load_operators(operators_dir)
+    with operators_dir.joinpath("custom_operators.json").open("r", encoding="utf-8") as handle:
+        custom_ops = json.load(handle)
+
+    namespace: Dict[str, Any] = {}
+    for _, op_data in custom_ops.get("operators", {}).items():
+        exec(op_data.get("function_code", ""), {"np": np}, namespace)
+    print(f"Loaded {len(namespace)} operators from {operators_dir}")
+    return namespace
 
 
 def baseline_fitness_eval(individual: Any, points: Sequence[np.ndarray], operators: Dict[str, Any]) -> Tuple[float]:
