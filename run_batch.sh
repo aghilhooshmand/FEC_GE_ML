@@ -17,8 +17,8 @@ export NUMEXPR_NUM_THREADS=1
 # If true: each launched process is pinned to one core (round-robin).
 CPU_PINNING_ENABLED=true
 # You can use ranges and commas, e.g. "0-39" or "0-19,40-59".
-BASELINE_CORE_RANGE="0-4"
-FEC_CORE_RANGE="5-9"
+BASELINE_CORE_RANGE="0-3"
+FEC_CORE_RANGE="4-9"
 
 # ----------------------- Baseline batch config -----------------------
 BASELINE_NUM_RUNS=10
