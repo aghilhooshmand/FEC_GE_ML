@@ -74,8 +74,7 @@
   },
   "DATA": {
     "Wisconsin_Breast_Cancer_without_ID.csv": "diagnosis",
-    "wine.csv": "class",
-    "clinical_breast_cancer_RFC_preprocessed.csv": "RFS_status"
+    "wine.csv": "class"
   },
   "BASELINE_SPECIFIC_CONFIG": {
     "dataset.smoth_balance": false

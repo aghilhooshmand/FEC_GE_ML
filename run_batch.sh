@@ -32,7 +32,7 @@ FEC_FRACTIONS=(0.1 0.2 0.3)
 FEC_FAKE_HIT_THRESHOLDS=(0)
 # Run both modes:
 # false -> noFake folder, true -> withFake folder
-FEC_EVALUATE_FAKE_MODES=("true")
+FEC_EVALUATE_FAKE_MODES=("false")
 
 expand_core_range() {
   local spec="$1"

@@ -1,2 +1,0 @@
-run,mode,sample_fraction,fake_hit_threshold,final_test_mae,final_test_accuracy,total_time_sec,total_time_fair_sec,total_wall_time_sec,fake_eval_time_sec,hits,misses,hit_rate_overall,fake_hits
-9,fec_simple_kmeans,0.2,0.0,0.06593406593406592,0.9340659340659341,13.119271516799927,13.119271516799927,15.59453267599747,0.0,39636.0,730.0,0.9819154734182233,0

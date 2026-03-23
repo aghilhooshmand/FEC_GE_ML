@@ -1,2 +1,0 @@
-run,mode,sample_fraction,fake_hit_threshold,final_test_mae,final_test_accuracy,total_time_sec,total_time_fair_sec,total_wall_time_sec,fake_eval_time_sec,hits,misses,hit_rate_overall,fake_hits
-20,fec_simple_farthest_point,0.4,0.0,0.37533086289041817,0.6246691371095818,21.4109890460968,21.4109890460968,146.15680341096595,0.0,24022.0,14711.0,0.62019466604704,0
