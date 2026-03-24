@@ -21,11 +21,11 @@ BASELINE_CORE_RANGE="0-3"
 FEC_CORE_RANGE="4-9"
 
 # ----------------------- Baseline batch config -----------------------
-BASELINE_NUM_RUNS=10
+BASELINE_NUM_RUNS=30
 BASELINE_MAX_PARALLEL=5
 
 # ------------------------- FEC batch config --------------------------
-FEC_RUNS_PER_CONFIG=10
+FEC_RUNS_PER_CONFIG=30
 FEC_MAX_PARALLEL=5
 FEC_SAMPLING_METHODS=("farthest_point" "stratified")
 FEC_FRACTIONS=(0.1 0.2 0.3)
