@@ -89,10 +89,8 @@ def _run_one_fec_simple(
         f"Pop={cfg['evolution.population']} ==="
     )
 
-    th_str = f"{fake_hit_threshold:g}"
-    th_tag = th_str.replace("-", "m").replace(".", "p")
     frac_pct = int(round(sample_fraction * 100))
-    file_tag = f"{sampling_method}_frac_{frac_pct}_th_{th_tag}"
+    file_tag = f"{sampling_method}_frac_{frac_pct}"
     run_suffix = f"FEC_simple_{file_tag}_run{run_index}"
 
     t0 = time.perf_counter()
@@ -153,7 +151,6 @@ def _run_one_fec_simple(
         "run": run_index,
         "mode": mode_label,
         "sample_fraction": float(sample_fraction),
-        "fake_hit_threshold": float(fake_hit_threshold),
         "final_test_mae": final_test_mae,
         "final_test_accuracy": final_test_accuracy,
         # total_time_sec = sum of generation_time (evolution + caching only)

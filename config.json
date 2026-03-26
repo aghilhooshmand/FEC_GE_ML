@@ -42,7 +42,7 @@
     "dataset.test_size": 0.2,
     "grammar.file": "heartDisease.bnf",
     "evolution.population": 50,
-    "evolution.generations": 10,
+    "evolution.generations": 5,
     "evolution.random_seed": 30,
     "ga_parameters.p_crossover": 0.8,
     "ga_parameters.p_mutation": 0.05,
@@ -79,7 +79,7 @@
     ]
   },
   "DATA": {
-    "GAMETES_Heterogeneity_20atts_1600_Het_0.4_0.2_75_EDM_2_001.csv": "target"
+    "breast_cancer.csv": "target"
   },
   "BASELINE_SPECIFIC_CONFIG": {
     "dataset.smoth_balance": false

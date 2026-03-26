@@ -48,7 +48,14 @@ def _parse_threshold_tag(tag: str) -> float | None:
     """Convert threshold tag to float: 0p01 -> 0.01, 1em5 -> 1e-5."""
     if not tag:
         return None
-    s = tag.replace("p", ".", 1).replace("m", "e-", 1)
+    # Writer encodes 1e-05 as 1em05 and 0.01 as 0p01.
+    # Decode "em" first to avoid producing invalid strings like "1ee-05".
+    s = tag
+    if "em" in s:
+        s = s.replace("em", "e-", 1)
+    else:
+        s = s.replace("m", "e-", 1)
+    s = s.replace("p", ".", 1)
     try:
         return float(s)
     except ValueError:
@@ -62,7 +69,7 @@ def _parse_fec_filename(path: Path) -> tuple[str | None, float | None, float | N
     Returns (sampling_method, fraction, threshold); fraction = pct/100, threshold from tag (0p01 -> 0.01).
     """
     stem = path.stem
-    if "_frac_" not in stem or "_th_" not in stem or "_run" not in stem:
+    if "_frac_" not in stem or "_run" not in stem:
         return None, None, None
     prefix, rest = stem.split("_frac_", 1)
     method = None
@@ -77,9 +84,11 @@ def _parse_fec_filename(path: Path) -> tuple[str | None, float | None, float | N
         fraction = int(part_before_th.strip()) / 100.0
     except ValueError:
         fraction = None
-    after_th = rest.split("_th_", 1)[1]
-    tag = after_th.split("_run", 1)[0].strip()
-    threshold = _parse_threshold_tag(tag)
+    threshold = None
+    if "_th_" in rest:
+        after_th = rest.split("_th_", 1)[1]
+        tag = after_th.split("_run", 1)[0].strip()
+        threshold = _parse_threshold_tag(tag)
     return method, fraction, threshold
 
 
@@ -104,8 +113,7 @@ def _load_baseline_csvs(baseline_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]
 
 def _load_fec_csvs(fec_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Load all FEC per-run CSVs. Filename template: generation_stats_<method>_frac_<pct>_th_<tag>_run<n>.
-    Add/overwrite fake_hit_threshold from filename (0p01 -> 0.01) so grouping and filtering are consistent.
+    Load all FEC per-run CSVs. Filename template: generation_stats_<method>_frac_<pct>_run<n>.
     """
     gen_files = sorted(fec_dir.glob("generation_stats_*_run*.csv"))
     summary_files = sorted(fec_dir.glob("summary_*_run*.csv"))
@@ -117,7 +125,6 @@ def _load_fec_csvs(fec_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     for p in gen_files:
         df = pd.read_csv(p)
         method, fraction, th = _parse_fec_filename(p)
-        df["fake_hit_threshold"] = th if th is not None else np.nan
         if fraction is not None:
             df["sample_fraction"] = fraction
         gen_frames.append(df)
@@ -125,7 +132,6 @@ def _load_fec_csvs(fec_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     for p in summary_files:
         df = pd.read_csv(p)
         method, fraction, th = _parse_fec_filename(p)
-        df["fake_hit_threshold"] = th if th is not None else np.nan
         if fraction is not None:
             df["sample_fraction"] = fraction
         summary_frames.append(df)
@@ -141,7 +147,7 @@ def _aggregate_generation_stats(gen_all: pd.DataFrame) -> pd.DataFrame:
     metrics = [c for c in numeric_cols if c not in (["run"] + grouping_keys)]
     if not metrics:
         return gen_all.copy()
-    grouped = gen_all.groupby(grouping_keys, as_index=False)[metrics]
+    grouped = gen_all.groupby(grouping_keys, as_index=False, dropna=False)[metrics]
     agg_mean = grouped.mean(numeric_only=True)
     agg_std = grouped.std(ddof=0, numeric_only=True)
     agg_mean = agg_mean.rename(columns={c: f"{c}_mean" for c in metrics})
@@ -156,7 +162,7 @@ def _aggregate_summary_stats(summary_all: pd.DataFrame) -> pd.DataFrame:
     metrics = [c for c in numeric_cols if c not in (["run"] + grouping_keys)]
     if not metrics:
         return summary_all.copy()
-    grouped = summary_all.groupby(grouping_keys, as_index=False)[metrics]
+    grouped = summary_all.groupby(grouping_keys, as_index=False, dropna=False)[metrics]
     agg_mean = grouped.mean(numeric_only=True)
     agg_std = grouped.std(ddof=0, numeric_only=True)
     agg_mean = agg_mean.rename(columns={c: f"{c}_mean" for c in metrics})
@@ -165,13 +171,13 @@ def _aggregate_summary_stats(summary_all: pd.DataFrame) -> pd.DataFrame:
 
 
 def _aggregate_fec_generation_stats(gen_all: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate FEC per-generation; group by mode, sample_fraction, fake_hit_threshold, gen."""
-    grouping_keys = ["mode", "sample_fraction", "fake_hit_threshold", "gen"]
+    """Aggregate FEC per-generation; group by mode, sample_fraction, gen."""
+    grouping_keys = ["mode", "sample_fraction", "gen"]
     numeric_cols = gen_all.select_dtypes(include="number").columns.tolist()
     metrics = [c for c in numeric_cols if c not in (["run"] + grouping_keys)]
     if not metrics:
         return gen_all.copy()
-    grouped = gen_all.groupby(grouping_keys, as_index=False)[metrics]
+    grouped = gen_all.groupby(grouping_keys, as_index=False, dropna=False)[metrics]
     agg_mean = grouped.mean(numeric_only=True)
     agg_std = grouped.std(ddof=0, numeric_only=True)
     agg_mean = agg_mean.rename(columns={c: f"{c}_mean" for c in metrics})
@@ -180,13 +186,13 @@ def _aggregate_fec_generation_stats(gen_all: pd.DataFrame) -> pd.DataFrame:
 
 
 def _aggregate_fec_summary_stats(summary_all: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate FEC summary; group by mode, sample_fraction, fake_hit_threshold. Add fake_hit_rate_overall_mean."""
-    grouping_keys = ["mode", "sample_fraction", "fake_hit_threshold"]
+    """Aggregate FEC summary; group by mode, sample_fraction. Add fake_hit_rate_overall_mean."""
+    grouping_keys = ["mode", "sample_fraction"]
     numeric_cols = summary_all.select_dtypes(include="number").columns.tolist()
     metrics = [c for c in numeric_cols if c not in (["run"] + grouping_keys)]
     if not metrics:
         return summary_all.copy()
-    grouped = summary_all.groupby(grouping_keys, as_index=False)[metrics]
+    grouped = summary_all.groupby(grouping_keys, as_index=False, dropna=False)[metrics]
     agg_mean = grouped.mean(numeric_only=True)
     agg_std = grouped.std(ddof=0, numeric_only=True)
     agg_mean = agg_mean.rename(columns={c: f"{c}_mean" for c in metrics})
@@ -202,33 +208,14 @@ def _aggregate_fec_summary_stats(summary_all: pd.DataFrame) -> pd.DataFrame:
 
 
 def _get_thresholds_and_fractions(fec_gen_agg: pd.DataFrame) -> tuple[List[float], dict]:
-    """Return (sorted thresholds, mapping threshold -> sorted fractions)."""
-    if "fake_hit_threshold" not in fec_gen_agg.columns:
-        fractions = sorted(fec_gen_agg["sample_fraction"].dropna().unique().tolist())
-        return ([np.nan], {np.nan: [float(f) for f in fractions]}) if fractions else ([], {})
-    th_vals = fec_gen_agg["fake_hit_threshold"].dropna().unique().tolist()
-    nan_has = fec_gen_agg["fake_hit_threshold"].isna().any()
-    thresholds = sorted((float(t) for t in th_vals if np.isfinite(t)), key=lambda x: (x, 0))
-    if nan_has:
-        thresholds.append(np.nan)
-    frac_per_th = {}
-    for th in thresholds:
-        if np.isnan(th):
-            mask = fec_gen_agg["fake_hit_threshold"].isna()
-        else:
-            mask = np.isclose(fec_gen_agg["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
-        frac_per_th[th] = sorted(float(f) for f in fec_gen_agg.loc[mask, "sample_fraction"].dropna().unique().tolist())
-    return thresholds, frac_per_th
+    """Single logical bucket (no threshold slicing); map NaN -> all fractions."""
+    fractions = sorted(float(f) for f in fec_gen_agg["sample_fraction"].dropna().unique().tolist()) if "sample_fraction" in fec_gen_agg.columns else []
+    return ([np.nan], {np.nan: fractions}) if fractions else ([], {})
 
 
 def _get_sorted_thresholds_from_summary(fec_summary_agg: pd.DataFrame) -> List[float]:
-    if fec_summary_agg.empty or "fake_hit_threshold" not in fec_summary_agg.columns:
-        return []
-    th_vals = fec_summary_agg["fake_hit_threshold"].dropna().unique()
-    finite = sorted(float(t) for t in th_vals if np.isfinite(t))
-    if fec_summary_agg["fake_hit_threshold"].isna().any():
-        finite.append(np.nan)
-    return finite
+    # Threshold-specific slices are deprecated in favor of fixed regimes.
+    return []
 
 
 def _format_method_display(method: str) -> str:
@@ -248,14 +235,14 @@ def _format_legend_fec(method: str, frac: float) -> str:
 
 def _format_threshold_label(threshold: float) -> str:
     if np.isnan(threshold):
-        return "N/A"
+        return ""
     if threshold >= 0.01 or threshold == 0:
         return str(threshold)
     return f"{threshold:.0e}"
 
 
 def _legend_method_plus_threshold(method: str, threshold: float) -> str:
-    return f"{_format_method_display(method)} (th {_format_threshold_label(threshold)})"
+    return _format_method_display(method)
 
 
 def _legend_method_plus_fraction(method: str, fraction: float) -> str:
@@ -279,20 +266,13 @@ def _filter_fec_by_threshold_and_fraction(
     fec_gen_agg: pd.DataFrame, threshold: float, fraction: float
 ) -> pd.DataFrame:
     mask_frac = np.isclose(fec_gen_agg["sample_fraction"].astype(float), fraction, rtol=_FLOAT_RTOL)
-    if "fake_hit_threshold" not in fec_gen_agg.columns:
-        return fec_gen_agg.loc[mask_frac].copy()
-    if np.isnan(threshold):
-        mask_th = fec_gen_agg["fake_hit_threshold"].isna()
-    else:
-        mask_th = np.isclose(fec_gen_agg["fake_hit_threshold"].astype(float), threshold, rtol=_FLOAT_RTOL)
-    return fec_gen_agg.loc[mask_th & mask_frac].copy()
+    return fec_gen_agg.loc[mask_frac].copy()
 
 
 def _legend_evolution(method: str, fraction: float, threshold: float) -> str:
-    """Legend label for evolution charts: method, fraction, threshold."""
+    """Legend label for evolution charts: method and fraction."""
     method_d = _format_method_display(method)
-    th_l = _format_threshold_label(threshold)
-    return f"{method_d} {fraction:.0%} th {th_l}"
+    return f"{method_d} {fraction:.0%}"
 
 
 def _build_aggregated_evolution_figs(
@@ -483,8 +463,9 @@ def _build_training_and_test_figs(
                 )
     th_label = _format_threshold_label(threshold)
     if fig_train.data:
+        title = f"Training MAE — Fraction {fraction:.0%}" if th_label == "" else f"Training MAE — Threshold {th_label}, Fraction {fraction:.0%}"
         fig_train.update_layout(
-            title=f"Training MAE — Threshold {th_label}, Fraction {fraction:.0%}",
+            title=title,
             xaxis_title="Generation", yaxis_title="Training MAE (lower is better)",
             template="plotly_white", hovermode="x unified",
         )
@@ -519,8 +500,9 @@ def _build_training_and_test_figs(
                     )
                 )
     if fig_test.data:
+        title = f"Test MAE — Fraction {fraction:.0%}" if th_label == "" else f"Test MAE — Threshold {th_label}, Fraction {fraction:.0%}"
         fig_test.update_layout(
-            title=f"Test MAE — Threshold {th_label}, Fraction {fraction:.0%}",
+            title=title,
             xaxis_title="Generation", yaxis_title="Test MAE (lower is better)",
             template="plotly_white", hovermode="x unified",
         )
@@ -634,7 +616,7 @@ def _build_cross_threshold_figs(
     fractions: List[float],
 ) -> List[str]:
     sections = []
-    if not thresholds or fec_summary_agg.empty:
+    if (not thresholds) or fec_summary_agg.empty or ("fake_hit_threshold" not in fec_summary_agg.columns):
         return sections
     x_label = [_format_threshold_label(t) for t in thresholds]
     baseline_time = float(base_summary_agg["total_time_sec_mean"].iloc[0]) if not base_summary_agg.empty and "total_time_sec_mean" in base_summary_agg.columns else None
@@ -717,7 +699,13 @@ def _build_speedup_heatmaps(
     combined_summary: pd.DataFrame | None = None,
 ) -> List[str]:
     sections = []
-    if fec_summary_agg.empty or base_summary_agg.empty or not fractions or not thresholds:
+    if (
+        fec_summary_agg.empty
+        or base_summary_agg.empty
+        or (not fractions)
+        or (not thresholds)
+        or ("fake_hit_threshold" not in fec_summary_agg.columns)
+    ):
         return sections
     baseline_mae = float(base_summary_agg["final_test_mae_mean"].iloc[0])
     baseline_time = float(base_summary_agg["total_time_sec_mean"].iloc[0])
@@ -806,7 +794,7 @@ def _build_hit_and_fake_heatmaps(
     thresholds: List[float],
 ) -> List[str]:
     sections = []
-    if fec_summary_agg.empty or not fractions or not thresholds:
+    if fec_summary_agg.empty or (not fractions) or (not thresholds) or ("fake_hit_threshold" not in fec_summary_agg.columns):
         return sections
     if "hit_rate_overall_mean" not in fec_summary_agg.columns:
         return sections
@@ -886,7 +874,7 @@ def _build_combined_summary(
     sum_all_fec: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Combined baseline + FEC table; speedup = baseline total_time_sec / FEC total_time_fair_sec. Optional per-run data for speedup_pvalue.
-    Includes columns: sampling_method, sampling_fraction, threshold (empty/NaN for baseline)."""
+    Includes columns: sampling_method, sampling_fraction."""
     if base_summary_agg.empty:
         return pd.DataFrame()
     base_row = base_summary_agg.iloc[0]
@@ -894,7 +882,7 @@ def _build_combined_summary(
     baseline_acc = float(base_row.get("final_test_accuracy_mean", np.nan))
     baseline_time = float(base_row.get("total_time_sec_mean", np.nan))
 
-    identity = ["source", "sampling_method", "mode", "sampling_fraction", "sample_fraction", "threshold", "fake_hit_threshold"]
+    identity = ["source", "sampling_method", "mode", "sampling_fraction", "sample_fraction"]
     key_metrics = ["final_test_mae_mean", "final_test_mae_std", "final_test_accuracy_mean", "final_test_accuracy_std", "total_time_sec_mean", "total_time_sec_std"]
     comparison = ["speedup", "speedup_pvalue", "mae_pvalue", "delta_mae_vs_baseline", "delta_accuracy_vs_baseline"]
     rows = []
@@ -905,8 +893,6 @@ def _build_combined_summary(
         "mode": base_row.get("mode", "baseline"),
         "sampling_fraction": np.nan,
         "sample_fraction": 1.0,
-        "threshold": np.nan,
-        "fake_hit_threshold": np.nan,
         # Baseline is the reference: speedup = 1 by definition
         "speedup": 1.0,
         "speedup_pvalue": np.nan,
@@ -938,14 +924,10 @@ def _build_combined_summary(
         speedup_pvalue = np.nan
         mae_pvalue = np.nan
         if baseline_times is not None and sum_all_fec is not None and baseline_times.size >= 2:
-            mode, frac, th = row["mode"], float(row["sample_fraction"]), row.get("fake_hit_threshold", np.nan)
+            mode, frac = row["mode"], float(row["sample_fraction"])
             mask_m = sum_all_fec["mode"] == mode
             mask_f = np.isclose(sum_all_fec["sample_fraction"].astype(float), frac, rtol=_FLOAT_RTOL)
-            if np.isnan(th):
-                mask_th = sum_all_fec["fake_hit_threshold"].isna()
-            else:
-                mask_th = np.isclose(sum_all_fec["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
-            sub = sum_all_fec.loc[mask_m & mask_f & mask_th]
+            sub = sum_all_fec.loc[mask_m & mask_f]
             if sub.shape[0] >= 2:
                 # Build per-run fair times robustly: prefer total_time_fair_sec per row,
                 # otherwise fall back to total_time_sec - fake_eval_time_sec.
@@ -975,33 +957,22 @@ def _build_combined_summary(
                     speedup_pvalue = _speedup_pvalue(baseline_times, fec_times)
 
         if baseline_mae_runs is not None and sum_all_fec is not None and baseline_mae_runs.size >= 2:
-            mode, frac, th = row["mode"], float(row["sample_fraction"]), row.get("fake_hit_threshold", np.nan)
+            mode, frac = row["mode"], float(row["sample_fraction"])
             mask_m = sum_all_fec["mode"] == mode
             mask_f = np.isclose(sum_all_fec["sample_fraction"].astype(float), frac, rtol=_FLOAT_RTOL)
-            if np.isnan(th):
-                mask_th = sum_all_fec["fake_hit_threshold"].isna()
-            else:
-                mask_th = np.isclose(sum_all_fec["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
-            sub_mae = sum_all_fec.loc[mask_m & mask_f & mask_th]
+            sub_mae = sum_all_fec.loc[mask_m & mask_f]
             if sub_mae.shape[0] >= 2 and "final_test_mae" in sub_mae.columns:
                 fec_mae_runs = np.asarray(sub_mae["final_test_mae"].dropna(), dtype=float)
                 if fec_mae_runs.size >= 2:
                     mae_pvalue = _mae_pvalue(baseline_mae_runs, fec_mae_runs)
 
         frac_val = float(row["sample_fraction"])
-        th_val = row.get("fake_hit_threshold", np.nan)
-        try:
-            th_val = float(th_val) if (th_val is not None and not (isinstance(th_val, float) and np.isnan(th_val))) else np.nan
-        except (TypeError, ValueError):
-            th_val = np.nan
         rec = {
             "source": "FEC",
             "sampling_method": _sampling_method_from_mode(row["mode"]),
             "mode": row["mode"],
             "sampling_fraction": frac_val,
             "sample_fraction": frac_val,
-            "threshold": th_val,
-            "fake_hit_threshold": th_val,
             "speedup": speedup,
             "speedup_pvalue": speedup_pvalue,
             "mae_pvalue": mae_pvalue,
@@ -1073,6 +1044,7 @@ def main() -> None:
     use_legacy_output_names = (len(fec_subdirs) == 1) and (fec_subdirs[0][1] in ("withFake", "noFake"))
 
     for one_fec_dir, sub_name in fec_subdirs:
+        is_nofake_report = (sub_name == "noFake")
         label_suffix = "" if use_legacy_output_names else (f"_{sub_name}" if sub_name else "")
         print(f"\n=== Report for FEC={sub_name or 'legacy'} ===")
 
@@ -1117,29 +1089,28 @@ def main() -> None:
             combined.to_csv(combined_path, index=False)
             print(f"Saved {combined_path}")
 
-        # HTML: Summary table then aggregated evolution, then per threshold/fraction, then across-fraction/threshold
+        # HTML: Summary table then aggregated evolution, per-fraction views, then across-fraction summaries.
         sections = []
-        sections.append("<h2>Aggregated evolution (training and test by fraction and threshold)</h2>")
-        sections.append("<p>Mean across runs; each line is one (fraction, threshold) configuration.</p>")
+        sections.append("<h2>Aggregated evolution (training and test by fraction)</h2>")
+        sections.append("<p>Mean across runs; each line is one fraction/method configuration.</p>")
         sections.extend(_build_aggregated_evolution_figs(gen_agg_base, gen_agg_fec, methods, thresholds, fractions_per_threshold))
 
-        sections.append("<h2>Training and test MAE per threshold and fraction</h2>")
-        for th in thresholds:
-            th_label = _format_threshold_label(th)
-            sections.append(f"<h3>Threshold {th_label}</h3>")
-            for frac in fractions_per_threshold.get(th, []):
-                sections.append(f"<h4>Fraction {frac:.0%}</h4>")
-                sections.extend(_build_training_and_test_figs(gen_agg_base, gen_agg_fec, th, frac, methods))
+        if not is_nofake_report:
+            sections.append("<h2>Training and test MAE per fraction</h2>")
+            for th in thresholds:
+                th_label = _format_threshold_label(th)
+                for frac in fractions_per_threshold.get(th, []):
+                    sections.append(f"<h4>Fraction {frac:.0%}</h4>")
+                    sections.extend(_build_training_and_test_figs(gen_agg_base, gen_agg_fec, th, frac, methods))
 
         sections.append("<h2>Across fractions</h2>")
         sections.extend(_build_cross_fraction_figs(sum_agg_fec, sum_agg_base, all_fractions, methods))
 
         if summary_thresholds:
-            sections.append("<h2>Across thresholds</h2>")
             sections.extend(_build_cross_threshold_figs(sum_agg_fec, sum_agg_base, summary_thresholds, methods, all_fractions))
-            sections.append("<h2>Speedup heatmaps (fraction × threshold)</h2>")
+            sections.append("<h2>Speedup heatmaps (fraction × regime)</h2>")
             sections.extend(_build_speedup_heatmaps(sum_agg_fec, sum_agg_base, methods, all_fractions, summary_thresholds, combined))
-            sections.append("<h2>Hit-rate heatmaps (fraction × threshold)</h2>")
+            sections.append("<h2>Hit-rate heatmaps (fraction × regime)</h2>")
             sections.extend(_build_hit_and_fake_heatmaps(sum_agg_fec, methods, all_fractions, summary_thresholds))
 
         # Prepare summary table HTML, bolding p-values < 0.05
@@ -1150,7 +1121,7 @@ def main() -> None:
             combined_display = combined_display.drop(columns=drop_fake_cols, errors="ignore")
             # Format numeric columns to short strings for display
             for col in combined_display.columns:
-                if np.issubdtype(combined_display[col].dtype, np.number):
+                if pd.api.types.is_numeric_dtype(combined_display[col]):
                     combined_display[col] = combined_display[col].map(
                         lambda v: "" if pd.isna(v) else f"{float(v):.5g}"
                     )
