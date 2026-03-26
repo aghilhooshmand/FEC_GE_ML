@@ -874,7 +874,7 @@ def _build_combined_summary(
     sum_all_fec: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Combined baseline + FEC table; speedup = baseline total_time_sec / FEC total_time_fair_sec. Optional per-run data for speedup_pvalue.
-    Includes columns: sampling_method, sampling_fraction."""
+    Includes columns: sampling_method and sample_fraction."""
     if base_summary_agg.empty:
         return pd.DataFrame()
     base_row = base_summary_agg.iloc[0]
@@ -882,7 +882,7 @@ def _build_combined_summary(
     baseline_acc = float(base_row.get("final_test_accuracy_mean", np.nan))
     baseline_time = float(base_row.get("total_time_sec_mean", np.nan))
 
-    identity = ["source", "sampling_method", "mode", "sampling_fraction", "sample_fraction"]
+    identity = ["source", "sampling_method", "mode", "sample_fraction"]
     key_metrics = ["final_test_mae_mean", "final_test_mae_std", "final_test_accuracy_mean", "final_test_accuracy_std", "total_time_sec_mean", "total_time_sec_std"]
     comparison = ["speedup", "speedup_pvalue", "mae_pvalue", "delta_mae_vs_baseline", "delta_accuracy_vs_baseline"]
     rows = []
@@ -891,13 +891,16 @@ def _build_combined_summary(
         "source": "baseline",
         "sampling_method": "",
         "mode": base_row.get("mode", "baseline"),
-        "sampling_fraction": np.nan,
         "sample_fraction": 1.0,
         # Baseline is the reference: speedup = 1 by definition
         "speedup": 1.0,
         "speedup_pvalue": np.nan,
         "delta_mae_vs_baseline": 0.0,
         "delta_accuracy_vs_baseline": 0.0,
+        # For fake-hit comparison columns, baseline is always zero.
+        "fake_hit_ratio_default_mean": 0.0,
+        "fake_hit_ratio_strict_mean": 0.0,
+        "fake_hit_ratio_loose_mean": 0.0,
     }
     for c in key_metrics:
         bline[c] = base_row.get(c, np.nan)
@@ -971,7 +974,6 @@ def _build_combined_summary(
             "source": "FEC",
             "sampling_method": _sampling_method_from_mode(row["mode"]),
             "mode": row["mode"],
-            "sampling_fraction": frac_val,
             "sample_fraction": frac_val,
             "speedup": speedup,
             "speedup_pvalue": speedup_pvalue,
@@ -979,8 +981,13 @@ def _build_combined_summary(
             "delta_mae_vs_baseline": delta_mae,
             "delta_accuracy_vs_baseline": delta_acc,
         }
+        # Carry over core metrics.
         for c in key_metrics:
             rec[c] = row.get(c, np.nan)
+        # Attach per-regime fake-hit ratios if present on the aggregated FEC row.
+        for reg_name in ("default", "strict", "loose"):
+            col = f"fake_hit_ratio_{reg_name}_mean"
+            rec[col] = row.get(col, np.nan) if col in row.index else np.nan
         rows.append(rec)
 
     return pd.DataFrame.from_records(rows)
