@@ -1102,16 +1102,115 @@ def main() -> None:
         sections.append("<p>Mean across runs; each line is one fraction/method configuration.</p>")
         sections.extend(_build_aggregated_evolution_figs(gen_agg_base, gen_agg_fec, methods, thresholds, fractions_per_threshold))
 
-        if not is_nofake_report:
-            sections.append("<h2>Training and test MAE per fraction</h2>")
-            for th in thresholds:
-                th_label = _format_threshold_label(th)
-                for frac in fractions_per_threshold.get(th, []):
-                    sections.append(f"<h4>Fraction {frac:.0%}</h4>")
-                    sections.extend(_build_training_and_test_figs(gen_agg_base, gen_agg_fec, th, frac, methods))
-
         sections.append("<h2>Across fractions</h2>")
         sections.extend(_build_cross_fraction_figs(sum_agg_fec, sum_agg_base, all_fractions, methods))
+
+        # With-fake only: fake-hit burden across regimes (grouped by fraction and sampling method).
+        if not is_nofake_report and not sum_agg_fec.empty:
+            regimes = ["default", "strict", "loose"]
+            available_regimes = [
+                r for r in regimes if f"fake_hit_ratio_{r}_mean" in sum_agg_fec.columns
+            ]
+            if available_regimes and "hit_rate_overall_mean" in sum_agg_fec.columns and "hits_mean" in sum_agg_fec.columns:
+                sections.append("<h2>Hit-rate composition across regimes (by fraction and sampling method)</h2>")
+                sections.append(
+                    "<p>For each sampling method and fraction, each bar (one per regime) is split into true-hit rate and "
+                    "fake-hit rate (both as a fraction of all evaluations). Text inside segments shows true- and fake-hit "
+                    "rates; numbers above bars show total hits.</p>"
+                )
+                for method in methods:
+                    m_rows = sum_agg_fec[sum_agg_fec["mode"] == method].copy()
+                    if m_rows.empty:
+                        continue
+                    m_rows = m_rows.sort_values("sample_fraction")
+                    x_vals = sorted(m_rows["sample_fraction"].dropna().unique().tolist())
+                    if not x_vals:
+                        continue
+                    fig_fake = go.Figure()
+                    # We want clustered bars per fraction (three bars: one per regime),
+                    # like the example image: bar height = total hit rate, bar color = regime,
+                    # and the text inside shows true vs fake composition.
+                    regime_colors = {
+                        "default": "#1f77b4",
+                        "strict": "#ff7f0e",
+                        "loose": "#2ca02c",
+                    }
+                    # Precompute per (regime, fraction) values
+                    hits_by_reg_frac: dict[tuple[str, float], float] = {}
+                    true_by_reg_frac: dict[tuple[str, float], float] = {}
+                    fake_by_reg_frac: dict[tuple[str, float], float] = {}
+                    for reg in available_regimes:
+                        col_ratio = f"fake_hit_ratio_{reg}_mean"
+                        for frac in x_vals:
+                            sub = m_rows[np.isclose(m_rows["sample_fraction"].astype(float), float(frac), rtol=_FLOAT_RTOL)]
+                            if (
+                                not sub.empty
+                                and col_ratio in sub.columns
+                                and "hit_rate_overall_mean" in sub.columns
+                                and "hits_mean" in sub.columns
+                            ):
+                                ratio = float(sub[col_ratio].iloc[0]) if np.isfinite(sub[col_ratio].iloc[0]) else np.nan
+                                hit_rate = float(sub["hit_rate_overall_mean"].iloc[0]) if np.isfinite(sub["hit_rate_overall_mean"].iloc[0]) else np.nan
+                                hits_mean = float(sub["hits_mean"].iloc[0]) if np.isfinite(sub["hits_mean"].iloc[0]) else np.nan
+                            else:
+                                ratio = np.nan
+                                hit_rate = np.nan
+                                hits_mean = np.nan
+                            if np.isfinite(hit_rate) and np.isfinite(ratio):
+                                fake_rate = hit_rate * ratio
+                                true_rate = hit_rate - fake_rate
+                                hits_by_reg_frac[(reg, float(frac))] = hit_rate
+                                true_by_reg_frac[(reg, float(frac))] = true_rate
+                                fake_by_reg_frac[(reg, float(frac))] = fake_rate
+
+                    # One bar per regime per fraction (clustered), colored by regime.
+                    for reg in available_regimes:
+                        y_vals = []
+                        txt_vals = []
+                        for frac in x_vals:
+                            key = (reg, float(frac))
+                            hit_rate = hits_by_reg_frac.get(key, np.nan)
+                            true_rate = true_by_reg_frac.get(key, np.nan)
+                            fake_rate = fake_by_reg_frac.get(key, np.nan)
+                            y_vals.append(hit_rate if np.isfinite(hit_rate) else np.nan)
+                            if np.isfinite(true_rate) and np.isfinite(fake_rate):
+                                txt_vals.append(f"T {true_rate:.1%}\nF {fake_rate:.1%}")
+                            else:
+                                txt_vals.append("")
+                        if any(np.isfinite(v) for v in y_vals):
+                            fig_fake.add_trace(
+                                go.Bar(
+                                    x=x_vals,
+                                    y=y_vals,
+                                    name=reg,
+                                    text=txt_vals,
+                                    textposition="inside",
+                                    marker_color=regime_colors.get(reg, None),
+                                )
+                            )
+
+                    # Add annotations for total hits on top of each bar (per fraction, per regime).
+                    for (reg, frac), hits_mean in hits_by_reg_frac.items():
+                        hit_rate = hits_by_reg_frac.get((reg, frac), np.nan)
+                        if not np.isfinite(hit_rate):
+                            continue
+                        fig_fake.add_annotation(
+                            x=frac,
+                            y=hit_rate,
+                            text=f"{hits_mean:.0f}",
+                            showarrow=False,
+                            yanchor="bottom",
+                        )
+                    fig_fake.update_layout(
+                        title=f"Hit-rate composition by regime — {_format_method_display(method)}",
+                        xaxis_title="Sample fraction",
+                        yaxis_title="Hit rate (true + fake, fraction of evaluations)",
+                        yaxis_tickformat=".0%",
+                        barmode="group",
+                        showlegend=True,
+                        template="plotly_white",
+                    )
+                    sections.append(pio.to_html(fig_fake, include_plotlyjs=False, full_html=False))
 
         if summary_thresholds:
             sections.extend(_build_cross_threshold_figs(sum_agg_fec, sum_agg_base, summary_thresholds, methods, all_fractions))

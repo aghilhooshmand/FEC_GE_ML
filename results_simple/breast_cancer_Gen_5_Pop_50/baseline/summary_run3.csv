@@ -1,2 +1,0 @@
-run,mode,sample_fraction,final_test_mae,final_test_accuracy,total_time_sec,total_wall_time_sec
-3,baseline_simple,1.0,0.3275862068965517,0.6724137931034483,0.04314112663269043,0.05355130694806576
