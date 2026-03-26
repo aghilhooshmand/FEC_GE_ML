@@ -581,21 +581,7 @@ def _build_cross_fraction_figs(
         fig_hit.update_layout(title="Overall hit rate across sample fractions", xaxis_title="Sample fraction", yaxis_title="Hit rate", yaxis_tickformat=".0%", template="plotly_white", hovermode="x unified")
         sections.append(pio.to_html(fig_hit, include_plotlyjs=False, full_html=False))
 
-    # Fake-hit rate across fractions
-    if "fake_hit_rate_overall_mean" in fec_summary_agg.columns:
-        fig_fake = go.Figure()
-        for method in methods:
-            for th in thresholds:
-                y_vals = []
-                for f in fractions:
-                    m = _match(method, f, th)
-                    y_vals.append(float(m["fake_hit_rate_overall_mean"].iloc[0]) if not m.empty and "fake_hit_rate_overall_mean" in m.columns else np.nan)
-                if any(np.isfinite(y) for y in y_vals):
-                    fig_fake.add_trace(go.Scatter(x=fractions, y=y_vals, mode="lines+markers", name=_legend_method_plus_threshold(method, th)))
-        if fig_fake.data:
-            fig_fake.update_layout(title="Overall fake-hit rate across sample fractions", xaxis_title="Sample fraction", yaxis_title="Fake-hit rate", yaxis_tickformat=".0%", template="plotly_white", hovermode="x unified")
-            _scale_fake_hit_rate_yaxis(fig_fake)
-            sections.append(pio.to_html(fig_fake, include_plotlyjs=False, full_html=False))
+    # Fake-hit charts intentionally omitted from this report.
 
     # Runtime ratio (FEC_fair_time / baseline_time) — baseline = 1
     fig_rt = go.Figure()
@@ -671,25 +657,7 @@ def _build_cross_threshold_figs(
         fig_hit.update_layout(title="Overall hit rate across thresholds", xaxis_title="Fake-hit threshold", yaxis_title="Hit rate", yaxis_tickformat=".0%", template="plotly_white", hovermode="x unified")
         sections.append(pio.to_html(fig_hit, include_plotlyjs=False, full_html=False))
 
-    # Fake-hit rate vs threshold
-    if "fake_hit_rate_overall_mean" in fec_summary_agg.columns:
-        fig_fake = go.Figure()
-        for method in methods:
-            for frac in fractions:
-                y_vals = []
-                for th in thresholds:
-                    if np.isnan(th):
-                        mask_th = fec_summary_agg["fake_hit_threshold"].isna()
-                    else:
-                        mask_th = np.isclose(fec_summary_agg["fake_hit_threshold"].astype(float), th, rtol=_FLOAT_RTOL)
-                    m = fec_summary_agg[(fec_summary_agg["mode"] == method) & np.isclose(fec_summary_agg["sample_fraction"].astype(float), frac, rtol=_FLOAT_RTOL) & mask_th]
-                    y_vals.append(float(m["fake_hit_rate_overall_mean"].iloc[0]) if not m.empty and "fake_hit_rate_overall_mean" in m.columns else np.nan)
-                if any(np.isfinite(y) for y in y_vals):
-                    fig_fake.add_trace(go.Scatter(x=x_label, y=y_vals, mode="lines+markers", name=_legend_method_plus_fraction(method, frac)))
-        if fig_fake.data:
-            fig_fake.update_layout(title="Overall fake-hit rate across thresholds", xaxis_title="Fake-hit threshold", yaxis_title="Fake-hit rate", yaxis_tickformat=".0%", template="plotly_white", hovermode="x unified")
-            _scale_fake_hit_rate_yaxis(fig_fake)
-            sections.append(pio.to_html(fig_fake, include_plotlyjs=False, full_html=False))
+    # Fake-hit charts intentionally omitted from this report.
 
     # Runtime ratio and Speedup across thresholds (using fair time)
     if baseline_time is not None and baseline_time > 0:
@@ -842,7 +810,8 @@ def _build_hit_and_fake_heatmaps(
         return sections
     if "hit_rate_overall_mean" not in fec_summary_agg.columns:
         return sections
-    has_fake = "fake_hit_rate_overall_mean" in fec_summary_agg.columns
+    # Fake-hit visuals are intentionally disabled in this report.
+    has_fake = False
     th_labels = [_format_threshold_label(t) for t in thresholds]
     frac_labels = [f"{f:.0%}" for f in fractions]
 
@@ -1170,12 +1139,15 @@ def main() -> None:
             sections.extend(_build_cross_threshold_figs(sum_agg_fec, sum_agg_base, summary_thresholds, methods, all_fractions))
             sections.append("<h2>Speedup heatmaps (fraction × threshold)</h2>")
             sections.extend(_build_speedup_heatmaps(sum_agg_fec, sum_agg_base, methods, all_fractions, summary_thresholds, combined))
-            sections.append("<h2>Hit-rate and fake-hit-rate heatmaps (fraction × threshold)</h2>")
+            sections.append("<h2>Hit-rate heatmaps (fraction × threshold)</h2>")
             sections.extend(_build_hit_and_fake_heatmaps(sum_agg_fec, methods, all_fractions, summary_thresholds))
 
         # Prepare summary table HTML, bolding p-values < 0.05
         if not combined.empty:
             combined_display = combined.copy()
+            # Remove fake-hit related columns from report summary table.
+            drop_fake_cols = [c for c in combined_display.columns if "fake_hit" in str(c).lower()]
+            combined_display = combined_display.drop(columns=drop_fake_cols, errors="ignore")
             # Format numeric columns to short strings for display
             for col in combined_display.columns:
                 if np.issubdtype(combined_display[col].dtype, np.number):

@@ -21,18 +21,17 @@ BASELINE_CORE_RANGE="0-3"
 FEC_CORE_RANGE="4-9"
 
 # ----------------------- Baseline batch config -----------------------
-BASELINE_NUM_RUNS=30
+BASELINE_NUM_RUNS=10
 BASELINE_MAX_PARALLEL=5
 
 # ------------------------- FEC batch config --------------------------
-FEC_RUNS_PER_CONFIG=30
+FEC_RUNS_PER_CONFIG=10
 FEC_MAX_PARALLEL=5
 FEC_SAMPLING_METHODS=("farthest_point" "stratified")
 FEC_FRACTIONS=(0.1 0.2 0.3)
-FEC_FAKE_HIT_THRESHOLDS=(0)
 # Run both modes:
 # false -> noFake folder, true -> withFake folder
-FEC_EVALUATE_FAKE_MODES=("false")
+FEC_EVALUATE_FAKE_MODES=("false" "true")
 
 expand_core_range() {
   local spec="$1"
@@ -111,9 +110,8 @@ run_fec_config_batch() {
   local mode="$3"
   local method="$4"
   local frac="$5"
-  local th="$6"
 
-  echo "=== FEC config batch: dataset=${dataset_file}, label=${label_col}, mode=${mode}, method=${method}, frac=${frac}, th=${th}, runs=${FEC_RUNS_PER_CONFIG}, max_parallel=${FEC_MAX_PARALLEL} ==="
+  echo "=== FEC config batch: dataset=${dataset_file}, label=${label_col}, mode=${mode}, method=${method}, frac=${frac}, runs=${FEC_RUNS_PER_CONFIG}, max_parallel=${FEC_MAX_PARALLEL} ==="
   local active=0
   local i
   local core_idx=0
@@ -137,45 +135,41 @@ run_fec_config_batch() {
     fi
     if [[ "${mode}" == "true" ]]; then
       if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
-        echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th} --evaluate-fake-hits"
+        echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --evaluate-fake-hits"
         taskset -c "${core}" python3 FEC_runs_simple.py \
           --run-index "${i}" \
           --dataset-file "${dataset_file}" \
           --label-column "${label_col}" \
           --sample-fraction "${frac}" \
           --sampling-method "${method}" \
-          --fake-hit-threshold "${th}" \
           --evaluate-fake-hits &
       else
-        echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th} --evaluate-fake-hits"
+        echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --evaluate-fake-hits"
         python3 FEC_runs_simple.py \
           --run-index "${i}" \
           --dataset-file "${dataset_file}" \
           --label-column "${label_col}" \
           --sample-fraction "${frac}" \
           --sampling-method "${method}" \
-          --fake-hit-threshold "${th}" \
           --evaluate-fake-hits &
       fi
     else
       if [[ "${CPU_PINNING_ENABLED}" == "true" ]]; then
-        echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th}"
+        echo "  -> taskset -c ${core} python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method}"
         taskset -c "${core}" python3 FEC_runs_simple.py \
           --run-index "${i}" \
           --dataset-file "${dataset_file}" \
           --label-column "${label_col}" \
           --sample-fraction "${frac}" \
-          --sampling-method "${method}" \
-          --fake-hit-threshold "${th}" &
+          --sampling-method "${method}" &
       else
-        echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method} --fake-hit-threshold ${th}"
+        echo "  -> python3 FEC_runs_simple.py --run-index ${i} --dataset-file ${dataset_file} --label-column ${label_col} --sample-fraction ${frac} --sampling-method ${method}"
         python3 FEC_runs_simple.py \
           --run-index "${i}" \
           --dataset-file "${dataset_file}" \
           --label-column "${label_col}" \
           --sample-fraction "${frac}" \
-          --sampling-method "${method}" \
-          --fake-hit-threshold "${th}" &
+          --sampling-method "${method}" &
       fi
     fi
     active=$((active+1))
@@ -204,11 +198,9 @@ for item in "${DATASETS[@]}"; do
   for mode in "${FEC_EVALUATE_FAKE_MODES[@]}"; do
     for method in "${FEC_SAMPLING_METHODS[@]}"; do
       for frac in "${FEC_FRACTIONS[@]}"; do
-        for th in "${FEC_FAKE_HIT_THRESHOLDS[@]}"; do
-          echo
-          echo "### FEC config run (mode=${mode}, method=${method}, frac=${frac}, th=${th})"
-          run_fec_config_batch "${dataset_file}" "${label_col}" "${mode}" "${method}" "${frac}" "${th}"
-        done
+        echo
+        echo "### FEC config run (mode=${mode}, method=${method}, frac=${frac})"
+        run_fec_config_batch "${dataset_file}" "${label_col}" "${mode}" "${method}" "${frac}"
       done
     done
   done

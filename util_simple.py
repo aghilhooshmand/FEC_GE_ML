@@ -215,8 +215,14 @@ def create_fec_fitness(
     cache: SimpleFECCache,
     evaluate_fake_hits: bool,
     fake_hit_threshold: float,
+    fake_hit_regimes: Dict[str, Dict[str, float]] | None = None,
     cache_key: str = "behavior_hash",
 ) -> Any:
+    regimes = dict(fake_hit_regimes or {})
+    if not regimes:
+        regimes = {"default": {"atol": float(fake_hit_threshold), "rtol": 0.0}}
+    cache.fake_hits_by_regime = {str(k): 0 for k in regimes.keys()}
+
     def fitness_eval(individual: Any, points: Sequence[np.ndarray], dataset_type: str = "train") -> Tuple[float]:
         x = np.asarray(points[0], dtype=np.float64)
         y_true = np.asarray(points[1], dtype=np.int64)
@@ -276,8 +282,17 @@ def create_fec_fitness(
         if use_cache and hit and evaluate_fake_hits and t0_fake is not None:
             dt = float(_t.perf_counter() - t0_fake)
             cache.fake_eval_time_sec += dt
-            if abs(cached - fitness_full) > fake_hit_threshold:
-                cache.fake_hits += 1
+            # Evaluate fake-hit status under all configured regimes in this same run.
+            for reg_name, d in regimes.items():
+                try:
+                    at = float(d.get("atol", 0.0))
+                    rt = float(d.get("rtol", 0.0))
+                except Exception:
+                    at, rt = 0.0, 0.0
+                if not np.isclose(float(cached), float(fitness_full), atol=at, rtol=rt, equal_nan=True):
+                    cache.fake_hits_by_regime[str(reg_name)] = int(cache.fake_hits_by_regime.get(str(reg_name), 0)) + 1
+            # Keep legacy aggregate fake_hits as "default" regime if available.
+            cache.fake_hits = int(cache.fake_hits_by_regime.get("default", cache.fake_hits))
             return (cached,)
 
         if use_cache and not hit:
@@ -405,6 +420,7 @@ def run_fec_experiment_simple(
         cache=cache,
         evaluate_fake_hits=bool(cfg.get("fec.evaluate_fake_hits", False)),
         fake_hit_threshold=float(cfg.get("fec.fake_hit_threshold", 1e-5)),
+        fake_hit_regimes=dict(cfg.get("FEC_TOLERANCE_REGIMES", {})),
         cache_key=str(cfg.get("fec.cache_key", "behavior_hash")),
     )
     toolbox.register("evaluate", eval_fn)
@@ -453,6 +469,7 @@ def run_fec_experiment_simple(
         "hits": cache.hits,
         "misses": cache.misses,
         "fake_hits": cache.fake_hits,
+        "fake_hits_by_regime": dict(getattr(cache, "fake_hits_by_regime", {})),
         "fake_eval_time_sec": cache.fake_eval_time_sec,
         "hit_rate_overall": (
             cache.hits / (cache.hits + cache.misses)
