@@ -42,7 +42,6 @@ def _load_config_fec() -> Dict[str, object]:
     common = dict(payload.get("COMMON_CONFIG", {}))
     fec_only = dict(payload.get("FEC_SPECIFIC_CONFIG", {}))
     merged = {**common, **fec_only}
-    merged["FEC_TOLERANCE_REGIMES"] = dict(payload.get("FEC_TOLERANCE_REGIMES") or {})
     return merged
 
 
@@ -140,7 +139,6 @@ def _run_one_fec_simple(
     overall_hit_rate = hits_total / total_lookups if total_lookups > 0.0 else 0.0
     fake_eval_time_sec = float(cache_stats.get("fake_eval_time_sec", 0.0) or 0.0)
     fake_hits_count = int(cache_stats.get("fake_hits", 0) or 0)
-    fake_hits_by_regime = dict(cache_stats.get("fake_hits_by_regime", {}) or {})
 
     # Fair time for comparison with baseline: exclude fake-hit re-evaluation overhead
     total_time_fair_sec = None
@@ -165,12 +163,8 @@ def _run_one_fec_simple(
         "misses": misses_total,
         "hit_rate_overall": overall_hit_rate,
         "fake_hits": fake_hits_count,
+        "fake_hit_ratio": (fake_hits_count / hits_total) if hits_total > 0.0 else None,
     }
-    for reg_name, reg_hits in sorted(fake_hits_by_regime.items()):
-        rk = str(reg_name)
-        hv = int(reg_hits)
-        summary_row[f"fake_hits_{rk}"] = hv
-        summary_row[f"fake_hit_ratio_{rk}"] = (hv / hits_total) if hits_total > 0.0 else None
 
     gen_path = experiment_dir / f"generation_stats_{file_tag}_run{run_index}.csv"
     df.to_csv(gen_path, index=False)

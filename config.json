@@ -23,17 +23,11 @@
     "fec.behavior_similarity": "Behavior similarity switch.",
     "fec.evaluate_fake_hits": "If true, re-evaluate cache hits to detect fake hits.",
     "fec.record_detailed_events": "Detailed cache event logging (adds overhead).",
-    "fec.fake_hit_threshold": "Legacy fake-hit threshold. Preferred: use FEC_TOLERANCE_REGIMES with np.isclose(atol,rtol).",
-    "FEC_TOLERANCE_REGIMES": "Fake-hit regimes evaluated in one run (no reruns): default (exact), strict, loose.",
+    "fec.fake_hit_threshold": "Legacy; fake-hit detection uses exact matching (np.isclose with atol=0, rtol=0).",
     "fec.cache_key": "Cache key strategy: behavior_hash, behavior_repr, phenotype, phenotype_hash.",
     "output.plot": "Enable plotting outputs.",
     "output.save_individuals_csv": "Save individuals CSV outputs.",
     "output.track_individuals": "Track individual-level history."
-  },
-  "FEC_TOLERANCE_REGIMES": {
-    "default": { "atol": 0, "rtol": 0 },
-    "strict": { "atol": 1e-12, "rtol": 1e-9 },
-    "loose": { "atol": 1e-6, "rtol": 1e-4 }
   },
   "COMMON_CONFIG": {
     "dataset.file": "Wisconsin_Breast_Cancer_without_ID.csv",
@@ -41,8 +35,8 @@
     "dataset.sample_fraction": null,
     "dataset.test_size": 0.2,
     "grammar.file": "heartDisease.bnf",
-    "evolution.population": 50,
-    "evolution.generations": 5,
+    "evolution.population": 500,
+    "evolution.generations": 50,
     "evolution.random_seed": 30,
     "ga_parameters.p_crossover": 0.8,
     "ga_parameters.p_mutation": 0.05,
@@ -79,7 +73,8 @@
     ]
   },
   "DATA": {
-    "breast_cancer.csv": "target"
+    "breast_cancer.csv": "target",
+    "analcatdata_creditscore.csv": "target"
   },
   "BASELINE_SPECIFIC_CONFIG": {
     "dataset.smoth_balance": false
