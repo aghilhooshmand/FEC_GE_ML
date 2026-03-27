@@ -17,18 +17,18 @@ export NUMEXPR_NUM_THREADS=1
 # If true: each launched process is pinned to one core (round-robin).
 CPU_PINNING_ENABLED=true
 # You can use ranges and commas, e.g. "0-39" or "0-19,40-59".
-BASELINE_CORE_RANGE="0-3"
-FEC_CORE_RANGE="4-9"
+BASELINE_CORE_RANGE="0-29"
+FEC_CORE_RANGE="30-59"
 
 # ----------------------- Baseline batch config -----------------------
-BASELINE_NUM_RUNS=10
-BASELINE_MAX_PARALLEL=5
+BASELINE_NUM_RUNS=30
+BASELINE_MAX_PARALLEL=30
 
 # ------------------------- FEC batch config --------------------------
-FEC_RUNS_PER_CONFIG=10
-FEC_MAX_PARALLEL=5
-FEC_SAMPLING_METHODS=("farthest_point" "stratified")
-FEC_FRACTIONS=(0.1 0.2 0.3)
+FEC_RUNS_PER_CONFIG=30
+FEC_MAX_PARALLEL=30
+FEC_SAMPLING_METHODS=("farthest_point" "stratified" "KMeans")
+FEC_FRACTIONS=(0.1 0.2 0.3 0.5)
 # Run both modes:
 # false -> noFake folder, true -> withFake folder
 FEC_EVALUATE_FAKE_MODES=("false" "true")
