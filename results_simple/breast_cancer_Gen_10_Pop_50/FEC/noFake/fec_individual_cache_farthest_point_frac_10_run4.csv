@@ -1,0 +1,330 @@
+run,gen,phenotype,hit,phenotype_in_cache,fitness_cached,cache_key,fitness_full_train,fake_hit,fitness_diff
+4,0,x[6],False,,,4c4c2df5f9cee84210b394b6027eada6,0.5043859649122807,False,0.0
+4,0,"greater_than_or_equal(x[3], x[5])",False,,,e975266d721ca2496268d88e4dd9a7e5,0.5,False,0.0
+4,0,"not_(greater_than_or_equal(x[2], x[2]))",False,,,45c9696c90e4d7579f6696b6f0775568,0.2894736842105263,False,0.0
+4,0,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],x[7]))",False,,,fb8df0f220cc5538de1fe83a69963d50,0.3991228070175439,False,0.0
+4,0,"less_than_or_equal(mul(x[3],x[5]),mul(x[7],x[0]))",False,,,6109ccadc6788db443a570bd4fb5faf0,0.7324561403508771,False,0.0
+4,0,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",False,,,ff0b809f0584777e132c9d84a5a96f45,0.7105263157894737,False,0.0
+4,0,"greater_than_or_equal(add(sub(x[2],x[0]),add(x[0],x[0])), mul(add(x[0],x[7]),add(x[3],x[0])))",False,,,307f21f8d0c51180d29e80824cb1d7c6,0.6535087719298245,False,0.0
+4,0,"less_than_or_equal(sub(add(x[3],x[7]),pdiv(x[5],x[5])),add(pdiv(x[0],x[2]),add(x[2],x[5])))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,0,"not_(not_(not_(or_(x[8],x[4]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,0,"greater_than_or_equal(sub(add(x[0],x[2]),mul(x[2],x[3])), mul(pdiv(x[2],x[5]),add(x[0],x[7])))",False,,,d8a2a963a496fb7938ae8ab9f0a2e925,0.5,False,0.0
+4,0,"or_(not_(greater_than_or_equal(x[2], x[5])),greater_than_or_equal(sub(x[7],x[3]), sub(x[2],x[5])))",False,,,4f53872aefababb7a2f247d5901d1581,0.6491228070175439,False,0.0
+4,0,"and_(and_(greater_than_or_equal(x[2], x[0]),less_than_or_equal(x[5],x[2])),greater_than_or_equal(mul(x[0],x[0]), pdiv(x[7],x[3])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,0,"less_than_or_equal(add(mul(x[2],x[7]),add(x[0],x[7])),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))",False,,,0ba0d9fed83468eb24b00450813a23ec,0.5526315789473684,False,0.0
+4,0,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",False,,,cd4593e7314929fb6ea05df736ec33cb,0.2763157894736842,False,0.0
+4,0,"less_than_or_equal(mul(pdiv(x[3],x[2]),add(x[3],x[2])),add(add(x[0],x[2]),mul(x[3],x[2])))",False,,,37ad00bedf0beb2f0d2c6ba7ec37607b,0.7324561403508771,False,0.0
+4,0,"greater_than_or_equal(pdiv(pdiv(x[2],x[7]),sub(x[5],x[0])), pdiv(sub(x[3],x[0]),add(x[2],x[0])))",False,,,baf5df8a59673afd23d8377d98c05565,0.45614035087719296,False,0.0
+4,1,"not_(not_(not_(and_(x[8],x[4]))))",False,,,20f1e9c23c89bf83476924f445298b9c,0.6973684210526316,False,0.0
+4,1,not_(x[8]),False,,,929969bb26a42b8cc58aa113397f8da6,0.6973684210526316,False,0.0
+4,1,"not_(not_(not_(or_(x[8],x[4]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,1,"not_(greater_than_or_equal(x[2], x[5]))",False,,,8c868caad90383047cff7d753877a4a0,0.4605263157894737,False,0.0
+4,1,"not_(greater_than_or_equal(x[2], mul(x[2],x[3])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,1,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,1,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[5])), x[2])",False,,,e5d06b567f50ca01785990b4da7ab4fa,0.3114035087719298,False,0.0
+4,1,"greater_than_or_equal(pdiv(pdiv(x[2],x[7]),sub(x[5],x[0])), pdiv(sub(x[3],x[0]),add(x[2],sub(x[5],x[7]))))",False,,,82036102dbf34742e08ba2cff39004ce,0.4736842105263158,False,0.0
+4,1,"greater_than_or_equal(mul(sub(x[0],x[3]),x[0]), x[5])",False,,,a620452278ecec5a590c382157723876,0.5350877192982456,False,0.0
+4,1,"less_than_or_equal(mul(x[3],x[7]),mul(x[2],x[7]))",False,,,df8215627618decd02cf567126f94373,0.7412280701754386,False,0.0
+4,1,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",False,,,b43367868499d3c2b69e57ce344d9401,0.2850877192982456,False,0.0
+4,1,"greater_than_or_equal(x[3], x[2])",False,,,66f2145147b4e5901b94eddc7a01e961,0.2763157894736842,False,0.0
+4,1,"not_(greater_than_or_equal(x[2], mul(x[7],mul(x[2],x[7]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,1,"greater_than_or_equal(pdiv(pdiv(x[2],x[5]),sub(x[5],x[0])), pdiv(sub(x[3],x[0]),add(x[2],x[0])))",False,,,a5fb6d99b13ff5dc5a270283e2b2ef00,0.4298245614035088,False,0.0
+4,1,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",False,,,286fc53d5b16a1c3ba4e1fe8731709f6,0.27192982456140347,False,0.0
+4,1,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],40.24)))",False,,,059c25f6692f080968adb40171a5fb5b,0.2894736842105263,False,0.0
+4,1,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,1,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,2,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[7],86.93)), x[7])",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[2]),x[3]))",True,"greater_than_or_equal(x[3], x[2])",0.2763157894736842,66f2145147b4e5901b94eddc7a01e961,,,
+4,2,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],mul(x[7],mul(x[2],x[7])))), x[0])",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"not_(greater_than_or_equal(x[2], x[7]))",False,,,afdcf2e22ad34b5ca2655fc53bbab6a0,0.5745614035087719,False,0.0
+4,2,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[7])), sub(mul(pdiv(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7]))),pdiv(pdiv(x[7],x[2]),add(x[2],x[2]))))",False,,,8db3b7da6c1d34fa77a9168d61488947,0.6754385964912281,False,0.0
+4,2,"not_(greater_than_or_equal(84.94, x[5]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"not_(not_(not_(or_(x[8],x[4]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"greater_than_or_equal(pdiv(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),x[2]))",False,,,d33d4302a9d84a2cfb6b79c7c4f33419,0.48245614035087714,False,0.0
+4,2,"not_(less_than_or_equal(x[7],pdiv(x[7],x[0])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"not_(not_(greater_than_or_equal(x[2], mul(x[7],x[3]))))",False,,,a6eb77d861277ff19000e57c09f2b2ad,0.7149122807017544,False,0.0
+4,2,"not_(not_(or_(x[8],x[4])))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,2,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",False,,,0cd7227f20141d7cea8d1f8ed98feba6,0.26754385964912286,False,0.0
+4,2,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[2]),x[2]))",False,,,310d3072dce50937f4eb3339bc5179a8,0.5350877192982456,False,0.0
+4,2,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[0],x[2])))",False,,,b416493ae485507a6c36ef92a82aed8d,0.39035087719298245,False,0.0
+4,2,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(sub(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",False,,,6e4c3d4f9827675bf44c89d95dcf2357,0.35526315789473684,False,0.0
+4,2,"greater_than_or_equal(mul(mul(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[7])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,2,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],x[5]))), pdiv(x[7],add(x[0],x[7])))",False,,,72e797989988e1b22e19d5fcbcc9abd8,0.26754385964912286,False,0.0
+4,2,"less_than_or_equal(mul(mul(x[5],x[3]),sub(96.62,x[7])),x[5])",True,"less_than_or_equal(mul(x[3],x[5]),mul(x[7],x[0]))",0.7324561403508771,6109ccadc6788db443a570bd4fb5faf0,,,
+4,2,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,2,"greater_than_or_equal(mul(mul(x[7],x[3]),sub(x[5],x[7])), sub(mul(x[2],x[0]),mul(x[3],x[5])))",False,,,b3993bce3e02c4558b52730cf694644d,0.2850877192982456,False,0.0
+4,2,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),pdiv(x[2],x[0]))),x[5])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,2,"greater_than_or_equal(x[3], sub(x[5],x[3]))",False,,,5cd0ffbb5f6030457f05417bb7fdfe28,0.4473684210526315,False,0.0
+4,2,"greater_than_or_equal(mul(mul(x[5],x[3]),x[2]), x[2])",False,,,766d3d77fca01c9241b842ef51afaa8d,0.3070175438596491,False,0.0
+4,2,"less_than_or_equal(mul(sub(x[0],x[3]),sub(x[5],x[7])),sub(mul(x[0],x[0]),mul(x[3],40.24)))",False,,,fe301f374c955f8f1c995434c6046ce2,0.7192982456140351,False,0.0
+4,2,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,3,"not_(greater_than_or_equal(x[2], x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,3,"greater_than_or_equal(mul(mul(x[3],x[3]),sub(x[5],x[7])), x[0])",True,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",0.2850877192982456,b43367868499d3c2b69e57ce344d9401,,,
+4,3,"not_(greater_than_or_equal(x[0], mul(x[3],24.64)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,3,"greater_than_or_equal(mul(mul(x[0],add(pdiv(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[2]))),x[2])),x[2]), x[5])",False,,,daf5a604f2a8cef51a81e03f0283e27c,0.2894736842105263,False,0.0
+4,3,"not_(greater_than_or_equal(x[0], mul(x[3],98.31)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,3,"not_(greater_than_or_equal(x[0], mul(x[3],66.93)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,3,"not_(greater_than_or_equal(x[0], mul(x[3],40.94)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,3,"not_(less_than_or_equal(x[3],x[5]))",False,,,b4fd3b430e1afebdf9ce54097f65c0bf,0.32894736842105265,False,0.0
+4,3,"less_than_or_equal(mul(x[0],x[2]),x[3])",True,"greater_than_or_equal(x[3], x[2])",0.2763157894736842,66f2145147b4e5901b94eddc7a01e961,,,
+4,3,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), x[2])",False,,,e81a2c2413d242b51157811d7ca85c65,0.2850877192982456,False,0.0
+4,3,"less_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],34.80))),x[0])",True,"less_than_or_equal(mul(x[3],x[5]),mul(x[7],x[0]))",0.7324561403508771,6109ccadc6788db443a570bd4fb5faf0,,,
+4,3,"not_(less_than_or_equal(x[7],pdiv(x[7],x[0])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,3,"not_(greater_than_or_equal(84.94, x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,3,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],x[5]))), x[7])",True,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],x[5]))), pdiv(x[7],add(x[0],x[7])))",0.26754385964912286,72e797989988e1b22e19d5fcbcc9abd8,,,
+4,3,"greater_than_or_equal(x[3], x[2])",True,"greater_than_or_equal(x[3], x[2])",0.2763157894736842,66f2145147b4e5901b94eddc7a01e961,,,
+4,3,"greater_than_or_equal(x[7], x[5])",False,,,88eb55c92499dc40d7f4672d2799ddab,0.6140350877192983,False,0.0
+4,3,"greater_than_or_equal(mul(mul(x[3],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[7])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,3,"greater_than_or_equal(mul(mul(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[2]),x[3]))",True,"greater_than_or_equal(x[3], x[2])",0.2763157894736842,66f2145147b4e5901b94eddc7a01e961,,,
+4,3,"less_than_or_equal(add(mul(x[7],x[3]),sub(x[5],x[7])),sub(mul(x[0],x[0]),mul(x[3],x[7])))",False,,,827a841d46e62a823d14f84235b27b88,0.6535087719298245,False,0.0
+4,3,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[7],mul(66.24,mul(x[2],x[3])))), x[2])",False,,,5af34a61ad8797a3401ffcfb310f1c7d,0.2894736842105263,False,0.0
+4,3,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],mul(34.80,x[0]))), x[7])",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,3,"not_(greater_than_or_equal(x[0], mul(x[7],x[5])))",False,,,6e11081d37e53f798a0bc5e940903e91,0.3114035087719298,False,0.0
+4,3,"greater_than_or_equal(mul(mul(x[0],x[3]),sub(x[5],sub(x[5],x[7]))), sub(mul(x[0],x[0]),mul(x[3],x[7])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,3,"greater_than_or_equal(x[3], x[5])",True,"greater_than_or_equal(x[3], x[5])",0.5,e975266d721ca2496268d88e4dd9a7e5,,,
+4,3,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],x[5]))), pdiv(x[7],add(x[0],x[7])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],x[5]))), pdiv(x[7],add(x[0],x[7])))",0.26754385964912286,72e797989988e1b22e19d5fcbcc9abd8,,,
+4,3,"greater_than_or_equal(mul(mul(x[7],x[3]),sub(x[5],x[7])), sub(mul(x[2],x[0]),mul(x[3],x[5])))",True,"greater_than_or_equal(mul(mul(x[7],x[3]),sub(x[5],x[7])), sub(mul(x[2],x[0]),mul(x[3],x[5])))",0.2850877192982456,b3993bce3e02c4558b52730cf694644d,,,
+4,3,"not_(greater_than_or_equal(x[3], sub(x[5],x[7])))",False,,,43a592d50e737e7b914d85e578221cf9,0.41666666666666663,False,0.0
+4,3,"greater_than_or_equal(mul(mul(x[5],x[2]),x[2]), sub(sub(mul(x[0],x[0]),mul(x[3],x[5])),x[7]))",False,,,81f8d315ab471633dac316dd95b8bc65,0.6008771929824561,False,0.0
+4,3,"greater_than_or_equal(mul(pdiv(x[0],x[3]),sub(x[0],add(mul(x[2],x[3]),x[2]))), x[2])",False,,,4ce72becf984b1c04e787cef7f9d6f99,0.4692982456140351,False,0.0
+4,3,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"greater_than_or_equal(mul(sub(x[0],x[3]),sub(x[7],add(mul(x[3],x[0]),x[0]))), mul(x[3],x[5]))",False,,,acd0ccf69bd0a22e1b38770182199df8,0.4298245614035088,False,0.0
+4,4,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",False,,,f8430a5c499f08402507164d1907d38d,0.7324561403508771,False,0.0
+4,4,"greater_than_or_equal(mul(mul(x[3],x[3]),sub(x[5],x[7])), sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7]))))",False,,,f55265c87f5cc7987182b37e3f9dd1f7,0.4385964912280702,False,0.0
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],66.14)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],68.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"greater_than_or_equal(mul(mul(x[3],x[7]),x[5]), x[7])",True,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",0.2850877192982456,b43367868499d3c2b69e57ce344d9401,,,
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],24.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"greater_than_or_equal(x[7], mul(x[3],x[5]))",False,,,e3e176ab975abe08886c1fad7bb714a8,0.7587719298245614,False,0.0
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],24.64)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],mul(x[0],mul(x[3],x[5])))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,4,"greater_than_or_equal(mul(pdiv(x[5],x[3]),98.39), x[3])",False,,,1d0ebb92d05a0b18d4459448602176eb,0.7105263157894737,False,0.0
+4,4,"greater_than_or_equal(mul(mul(x[0],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[7]),x[2]))",False,,,2772d76a468819f6f032ff19f9be94f3,0.5219298245614035,False,0.0
+4,4,"not_(less_than_or_equal(x[2],x[2]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,4,"less_than_or_equal(mul(x[0],x[2]),sub(x[5],x[7]))",False,,,0a2a5228e612a99a1c1d9483bb8aea1d,0.32894736842105265,False,0.0
+4,4,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[7],89.84)), x[7])",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,4,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[0],x[0]))), pdiv(add(mul(x[3],x[5]),pdiv(x[7],add(x[0],x[7]))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,4,"not_(greater_than_or_equal(x[0], mul(mul(98.24,add(mul(x[3],x[5]),pdiv(x[7],add(x[0],x[7])))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],24.29)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"greater_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[0],x[5]))), mul(x[3],x[5]))",True,"less_than_or_equal(mul(x[3],x[5]),mul(x[7],x[0]))",0.7324561403508771,6109ccadc6788db443a570bd4fb5faf0,,,
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",False,,,ee03bdb4e5311555eccf62822f637811,0.2763157894736842,False,0.0
+4,4,"not_(greater_than_or_equal(x[0], mul(40.94,x[5])))",False,,,b83c34d06a0372999cfb19a734f1f7de,0.5350877192982456,False,0.0
+4,4,"not_(greater_than_or_equal(x[0], x[3]))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,4,"greater_than_or_equal(mul(mul(x[5],x[3]),x[7]), x[3])",False,,,dde00baeed4ec3da99c3668958c908b6,0.7324561403508771,False,0.0
+4,4,"not_(greater_than_or_equal(x[7], x[5]))",False,,,68e8b36c2c3a161a73f098a03180acc6,0.38596491228070173,False,0.0
+4,4,"greater_than_or_equal(mul(mul(x[3],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[3]),sub(x[5],x[7])))",False,,,0f34fba85b1d9f13525f72a1f2fbbb95,0.3728070175438597,False,0.0
+4,4,"not_(greater_than_or_equal(sub(mul(x[0],x[0]),mul(x[3],x[2])), pdiv(x[7],add(x[0],x[7]))))",False,,,912295b7e80e2716c3398d145fdace2e,0.6096491228070176,False,0.0
+4,4,"not_(less_than_or_equal(x[0],x[7]))",False,,,fbc7760926858de22deb55130fc1ce1e,0.5745614035087719,False,0.0
+4,4,"not_(greater_than_or_equal(mul(x[5],pdiv(x[7],add(x[0],x[7]))), pdiv(pdiv(x[2],x[2]),add(x[2],x[2]))))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,4,"greater_than_or_equal(mul(mul(x[5],69.39),sub(sub(mul(x[0],x[0]),mul(x[2],add(mul(x[3],66.93),x[7]))),sub(mul(x[0],x[0]),mul(x[3],x[5])))), pdiv(x[7],add(x[0],x[7])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,4,"greater_than_or_equal(mul(x[0],x[2]), x[3])",True,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",0.7324561403508771,f8430a5c499f08402507164d1907d38d,,,
+4,4,"not_(greater_than_or_equal(add(x[7],add(mul(x[3],66.13),x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5]))))",False,,,9ba94792c7042dda3d6854f9ada14246,0.2894736842105263,False,0.0
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],add(x[7],add(mul(x[3],98.31),x[3])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,4,"less_than_or_equal(mul(mul(x[5],x[3]),mul(x[0],mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7])))",False,,,1d6ef0c632857904046804c6a0ddf473,0.7280701754385965,False,0.0
+4,4,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"greater_than_or_equal(mul(mul(x[3],x[7]),x[5]), x[7])",True,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",0.2850877192982456,b43367868499d3c2b69e57ce344d9401,,,
+4,5,"not_(greater_than_or_equal(pdiv(sub(mul(x[0],x[0]),mul(x[3],x[5])),pdiv(x[7],add(x[0],x[7]))), pdiv(pdiv(x[2],x[2]),add(x[2],x[2]))))",False,,,508208b1bb61aa9c1694e74c489d8cf6,0.631578947368421,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"greater_than_or_equal(mul(mul(x[5],69.39),sub(sub(mul(x[0],x[0]),mul(x[2],add(mul(x[3],49.24),mul(x[5],x[7])))),sub(mul(x[0],x[0]),mul(x[3],x[5])))), pdiv(x[7],add(x[0],x[7])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",False,,,61f3e484d184b461216691ce68cd5da6,0.24561403508771928,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],24.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[3], mul(x[5],x[7])))",False,,,1140d3e635c26b177391c66a6ed8165d,0.5570175438596492,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],20.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(pdiv(add(x[3],x[5]),x[7]), sub(mul(x[0],x[0]),mul(x[3],x[5]))))",False,,,1245d7a1f9c4dd8d60cbfecdaa7f38d9,0.4605263157894737,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], x[3]))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,5,"not_(greater_than_or_equal(x[2], mul(x[3],x[3])))",False,,,693b7fd77367e21a8731633892f134aa,0.2850877192982456,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],68.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",False,,,9a52391115cf7bc8a77e5b4f5ecd0906,0.2763157894736842,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],mul(68.69,pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[7])))))))",False,,,ca801f863fe63385dbe69a0f663e0001,0.27192982456140347,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],24.64)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],x[2])))",False,,,d3f8640a136c465860db8e2bcf96d696,0.29385964912280704,False,0.0
+4,5,"not_(greater_than_or_equal(mul(x[0],x[3]), x[2]))",False,,,c47f4b525f717b9624b7ee481ad92e14,0.7017543859649122,False,0.0
+4,5,"not_(greater_than_or_equal(x[7], add(x[3],x[5])))",False,,,4b83d1333e64c51f2e5e16c7f564d08b,0.4035087719298246,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",False,,,9382e298d91e02775993356fa110bc81,0.26315789473684215,False,0.0
+4,5,"not_(less_than_or_equal(mul(x[0],x[0]),mul(x[3],x[5])))",True,"less_than_or_equal(mul(x[3],x[5]),mul(x[7],x[0]))",0.7324561403508771,6109ccadc6788db443a570bd4fb5faf0,,,
+4,5,"greater_than_or_equal(mul(mul(pdiv(pdiv(x[7],x[5]),pdiv(sub(x[7],add(mul(x[3],24.69),pdiv(x[2],mul(x[5],x[3])))),sub(x[5],x[7]))),sub(mul(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7]))), pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,5,"not_(less_than_or_equal(x[5],x[7]))",True,"not_(greater_than_or_equal(x[7], x[5]))",0.38596491228070173,68e8b36c2c3a161a73f098a03180acc6,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],24.94)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(less_than_or_equal(x[3],x[5]))",True,"not_(less_than_or_equal(x[3],x[5]))",0.32894736842105265,b4fd3b430e1afebdf9ce54097f65c0bf,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],42.49)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",True,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",0.26315789473684215,9382e298d91e02775993356fa110bc81,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],48.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],22.42)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(add(x[7],add(x[2],x[5])), x[7]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,5,"not_(greater_than_or_equal(x[0], mul(x[0],mul(x[3],66.94))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,5,"not_(greater_than_or_equal(x[3], x[3]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,5,"not_(greater_than_or_equal(x[0], x[7]))",False,,,7b8c9beffce0ae2ddbda78a83e14a216,0.4078947368421053,False,0.0
+4,5,"not_(greater_than_or_equal(mul(x[5],x[7]), sub(mul(x[0],x[0]),mul(x[3],x[5]))))",False,,,f874e97f5a799e9236afb482000519a2,0.5877192982456141,False,0.0
+4,5,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],20.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],28.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[7],x[7])))",False,,,2cedc9a0016491de22e9e08617af5cd6,0.35526315789473684,False,0.0
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],mul(24.69,mul(x[3],x[3])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"or_(greater_than_or_equal(x[0], mul(x[7],24.64)),greater_than_or_equal(x[0], mul(x[3],68.69)))",True,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",0.7324561403508771,f8430a5c499f08402507164d1907d38d,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(24.94,add(mul(x[3],pdiv(x[7],x[3])),x[5]))))",False,,,5bf3f0875a010ab27277ba9618e0b738,0.5350877192982456,False,0.0
+4,6,"not_(greater_than_or_equal(mul(24.94,add(mul(x[3],24.29),pdiv(x[7],x[0]))), x[0]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,6,"not_(greater_than_or_equal(x[0], x[7]))",True,"not_(greater_than_or_equal(x[0], x[7]))",0.4078947368421053,7b8c9beffce0ae2ddbda78a83e14a216,,,
+4,6,"not_(less_than_or_equal(x[3],24.64))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],68.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(less_than_or_equal(24.29,pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],34.80)))))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,6,"not_(greater_than_or_equal(x[0], pdiv(x[2],x[0])))",False,,,73d526988aad21015c7d854e9fb1be86,0.513157894736842,False,0.0
+4,6,"not_(greater_than_or_equal(x[0], mul(x[0],mul(x[3],x[3]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",True,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",0.26315789473684215,9382e298d91e02775993356fa110bc81,,,
+4,6,"not_(less_than_or_equal(x[3],x[7]))",False,,,b55da7665013d83f5bfbc88645ceeebf,0.26754385964912286,False,0.0
+4,6,"not_(greater_than_or_equal(x[0], mul(x[7],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[7])))",0.35526315789473684,2cedc9a0016491de22e9e08617af5cd6,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",True,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",0.2763157894736842,ee03bdb4e5311555eccf62822f637811,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],29.48)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"or_(greater_than_or_equal(x[0], mul(x[3],20.24)),x[6])",False,,,0269158e5c51c3933c597d1f6b424d2e,0.7675438596491229,False,0.0
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],29.39)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(less_than_or_equal(x[0],mul(x[3],68.64)))",True,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",0.7324561403508771,f8430a5c499f08402507164d1907d38d,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],mul(x[3],24.64))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(greater_than_or_equal(x[2], x[0]))",False,,,ba765c42df21964947348d0763396a23,0.5964912280701755,False,0.0
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],42.94)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(less_than_or_equal(88.93,x[7]))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],mul(68.69,pdiv(x[7],pdiv(mul(x[3],68.69),pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[7])))))))))",False,,,10ff793a9da9742a264ceb26dd4ee8a8,0.29385964912280704,False,0.0
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],46.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(49.49,x[0])))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,6,"not_(greater_than_or_equal(x[7], x[0]))",True,"not_(less_than_or_equal(x[0],x[7]))",0.5745614035087719,fbc7760926858de22deb55130fc1ce1e,,,
+4,6,"not_(less_than_or_equal(mul(22.42,66.13),x[7]))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[7],add(mul(x[3],x[7]),mul(mul(x[3],66.13),x[7])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,6,"not_(greater_than_or_equal(x[0], x[3]))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,6,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,7,"not_(greater_than_or_equal(x[7], mul(x[7],mul(x[3],x[7]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,7,"not_(greater_than_or_equal(x[5], mul(x[3],29.09)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(add(x[7],sub(mul(x[3],28.69),mul(x[3],x[3]))),sub(x[5],x[7]))))",False,,,2c248eb766066b142734c9280438f696,0.24561403508771928,False,0.0
+4,7,"not_(greater_than_or_equal(x[3], mul(x[7],x[7])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),x[7]), x[3])",0.7324561403508771,dde00baeed4ec3da99c3668958c908b6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],68.65)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[5],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[5])))",0.3114035087719298,6e11081d37e53f798a0bc5e940903e91,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[7],add(mul(mul(mul(x[7],mul(mul(x[3],66.70),mul(x[3],x[7]))),x[5]),x[2]),sub(x[7],mul(x[0],mul(x[3],x[5])))))))",False,,,33a2936a5872648f5c2fca19971854f2,0.3377192982456141,False,0.0
+4,7,not_(not_(x[4])),True,"greater_than_or_equal(mul(pdiv(x[5],x[3]),98.39), x[3])",0.7105263157894737,1d0ebb92d05a0b18d4459448602176eb,,,
+4,7,"not_(greater_than_or_equal(24.24, mul(mul(add(sub(x[3],24.29),pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7]))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(mul(x[3],x[7]),add(mul(x[3],24.29),pdiv(x[7],sub(mul(x[0],x[3]),mul(x[3],x[5])))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],mul(28.69,mul(x[3],x[3])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],68.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],28.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[0],28.69)))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],22.42)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],29.39)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[0],mul(x[3],sub(mul(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7])))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],48.96)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(less_than_or_equal(x[3],x[7]))",True,"not_(less_than_or_equal(x[3],x[7]))",0.26754385964912286,b55da7665013d83f5bfbc88645ceeebf,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[7]))))))",False,,,307ae0656e4ce711abd300fbd25a10fd,0.27192982456140347,False,0.0
+4,7,"not_(greater_than_or_equal(x[0], mul(x[7],add(mul(x[3],x[7]),mul(mul(x[3],x[5]),x[7])))))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],66.13)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],mul(68.69,pdiv(x[7],pdiv(mul(x[3],88.69),pdiv(pdiv(x[7],add(x[0],x[7])),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))))))",False,,,0c582b6a07caacbc216e5ff19feac38c,0.29385964912280704,False,0.0
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(add(mul(96.62,x[0]),x[0]),mul(x[3],x[7])))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],42.42)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[7], x[3]))",True,"not_(less_than_or_equal(x[3],x[7]))",0.26754385964912286,b55da7665013d83f5bfbc88645ceeebf,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],40.94)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,7,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[7],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[7]))))))",0.27192982456140347,307ae0656e4ce711abd300fbd25a10fd,,,
+4,8,"not_(greater_than_or_equal(x[7], x[3]))",True,"not_(less_than_or_equal(x[3],x[7]))",0.26754385964912286,b55da7665013d83f5bfbc88645ceeebf,,,
+4,8,"not_(greater_than_or_equal(sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))), pdiv(x[7],add(x[0],x[7]))))",False,,,2cb56d6d438d3d90725009eb5e344995,0.7631578947368421,False,0.0
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],x[0])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,8,"not_(greater_than_or_equal(mul(x[3],x[5]), pdiv(x[7],add(x[0],x[7]))))",False,,,e2ec20db0d13494effb94ff00213561d,0.7807017543859649,False,0.0
+4,8,"not_(greater_than_or_equal(x[3], x[5]))",False,,,ede54fbc5739a5a58374e649b326af7f,0.5,False,0.0
+4,8,"not_(greater_than_or_equal(x[0], mul(mul(mul(sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),sub(x[0],mul(x[3],28.69)))),mul(x[3],x[3])),sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7]))))))",True,"not_(greater_than_or_equal(x[0], mul(add(x[7],sub(mul(x[3],28.69),mul(x[3],x[3]))),sub(x[5],x[7]))))",0.24561403508771928,2c248eb766066b142734c9280438f696,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(sub(mul(x[7],sub(x[5],x[7])),sub(mul(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],mul(68.69,pdiv(x[7],pdiv(mul(x[3],88.69),pdiv(pdiv(x[7],add(x[0],x[7])),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))))))",0.29385964912280704,0c582b6a07caacbc216e5ff19feac38c,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[7],add(mul(x[3],22.42),x[3]))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(66.13,x[7])))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[7],68.69)))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(x[7],x[3]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],mul(28.69,mul(x[3],x[3])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[0],68.65)))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),pdiv(mul(x[0],x[0]),mul(x[3],x[7]))))))",True,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",0.2850877192982456,b43367868499d3c2b69e57ce344d9401,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],29.39)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[3], 96.62))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),sub(add(add(mul(x[3],40.94),add(add(x[3],mul(24.62,mul(x[3],x[3]))),sub(x[5],x[7]))),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],34.80)))),x[0])),x[7]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,8,"not_(greater_than_or_equal(x[7], x[7]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(pdiv(mul(x[5],sub(mul(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7]))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2]))))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),pdiv(x[7],add(x[0],x[7]))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,8,not_(x[6]),False,,,0ec6454284bc2a77b567661e95be2c39,0.4956140350877193,False,0.0
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],46.25)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],68.69)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[5], x[7]))",False,,,20f7db205f62769ad93be2104c7c2442,0.6096491228070176,False,0.0
+4,8,"not_(greater_than_or_equal(add(add(mul(x[3],40.94),x[7]),x[7]), pdiv(mul(x[3],68.69),pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[7]))))))",False,,,d39bf251c0f4caba3827cee606e92f43,0.26315789473684215,False,0.0
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],mul(x[3],29.60))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,8,"not_(less_than_or_equal(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))",False,,,5148496e16bcabc066649ea46cb39cde,0.3377192982456141,False,0.0
+4,8,"not_(greater_than_or_equal(x[0], mul(pdiv(mul(sub(sub(x[5],28.60),mul(x[3],x[3])),sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7])))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))",False,,,92398b9a6ba4fe3dd7dcf2d7967d7c6f,0.5087719298245614,False,0.0
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],mul(x[7],mul(pdiv(sub(x[7],x[3]),x[3]),sub(x[5],x[7]))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,8,"not_(greater_than_or_equal(mul(x[3],68.69), pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[7])))))",True,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",0.7324561403508771,f8430a5c499f08402507164d1907d38d,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],29.48)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,8,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],29.30)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,9,"not_(greater_than_or_equal(add(add(mul(x[3],40.94),x[7]),x[7]), pdiv(mul(x[0],68.69),pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[7]))))))",False,,,af2d6940454f1757591943f44457322b,0.7105263157894737,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],add(add(sub(add(add(mul(x[3],40.94),add(add(x[3],mul(24.32,mul(pdiv(pdiv(x[3],sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],34.80)))),x[0])),x[0]))),x[7])),x[3]),66.13),x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7])))))))",False,,,62a726d1dc24ca1bd546348c9e98adf5,0.25,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(x[0],29.90)))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],mul(25.69,add(x[3],x[3])))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,9,"not_(greater_than_or_equal(add(add(mul(x[5],40.94),x[7]),x[7]), pdiv(mul(x[3],68.72),sub(sub(x[5],x[7]),sub(mul(pdiv(mul(x[0],sub(x[0],mul(x[3],28.59))),mul(x[3],x[3])),sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7]))))))))",False,,,c9dbdd4f419ccbfcb821a01a49b9635b,0.29824561403508776,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[7])))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,9,not_(x[6]),True,not_(x[6]),0.4956140350877193,0ec6454284bc2a77b567661e95be2c39,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,9,"not_(greater_than_or_equal(x[3], x[5]))",True,"not_(greater_than_or_equal(x[3], x[5]))",0.5,ede54fbc5739a5a58374e649b326af7f,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[7],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[0],mul(x[3],26.39)))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[7],add(mul(x[7],add(mul(x[3],22.42),x[3])),48.96)),x[5]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,9,"not_(greater_than_or_equal(pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5]))), pdiv(x[7],add(x[0],x[7]))))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],pdiv(x[0],x[2]))))",False,,,357d4f5bbbeb8f674679acc9a0a9c2c7,0.25877192982456143,False,0.0
+4,9,"not_(greater_than_or_equal(x[7], x[3]))",True,"not_(less_than_or_equal(x[3],x[7]))",0.26754385964912286,b55da7665013d83f5bfbc88645ceeebf,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[7],x[7])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[7])))",0.35526315789473684,2cedc9a0016491de22e9e08617af5cd6,,,
+4,9,"not_(greater_than_or_equal(x[3], add(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5])))))",False,,,d60e974f7c1290b2d7589a0b51de35bc,0.5657894736842105,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[3],28.69),mul(x[3],x[3]))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,9,"not_(greater_than_or_equal(mul(x[0],x[0]), mul(x[3],x[5])))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(24.24,x[3]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",True,"not_(greater_than_or_equal(x[0], mul(x[3],x[5])))",0.26315789473684215,9382e298d91e02775993356fa110bc81,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",True,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",0.2763157894736842,ee03bdb4e5311555eccf62822f637811,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],21.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[7],add(mul(x[3],22.42),x[7]))))",False,,,41b724b22c0cb4677b1961df68e4c34a,0.3377192982456141,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[3]),mul(x[5],pdiv(x[7],add(x[0],x[7]))))))))",False,,,0fdd0ef8d412fd9ff42d4c7ad6867470,0.27192982456140347,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], add(66.93,x[7])))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,9,"not_(greater_than_or_equal(x[0], sub(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",False,,,b604d07ee6ee7ca2929d03861d59729a,0.5043859649122807,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],46.09)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(add(x[5],x[7]),add(mul(x[0],x[0]),mul(sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7]))))))))",False,,,3229aa417b8a3e259e1283bce49c52b4,0.2807017543859649,False,0.0
+4,9,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,9,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,10,not_(x[6]),True,not_(x[6]),0.4956140350877193,0ec6454284bc2a77b567661e95be2c39,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(add(x[7],add(mul(x[3],29.30),mul(x[3],x[2]))),mul(pdiv(sub(x[7],x[3]),x[3]),sub(x[5],x[7])))))",False,,,06a1f859b2b133d0e7e1fcc363886283,0.2894736842105263,False,0.0
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(add(sub(mul(x[3],29.60),mul(x[3],mul(24.69,mul(x[3],x[3])))),sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7])))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[7],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[0],x[0]))))))",True,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",0.2850877192982456,b43367868499d3c2b69e57ce344d9401,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",True,"not_(greater_than_or_equal(x[0], mul(x[7],x[3])))",0.2763157894736842,9a52391115cf7bc8a77e5b4f5ecd0906,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(sub(pdiv(x[7],sub(mul(x[0],x[0]),mul(21.24,x[7]))),pdiv(x[7],x[5])),x[7]),add(mul(x[3],24.64),pdiv(add(x[0],x[7]),pdiv(pdiv(x[2],x[2]),add(x[2],x[2]))))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,not_(x[8]),True,not_(x[8]),0.6973684210526316,929969bb26a42b8cc58aa113397f8da6,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],add(x[5],x[7])))))))",False,,,ea9a3b5c05935fe9e635ce3fb8ad8b66,0.25877192982456143,False,0.0
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],x[5])))))))",True,"greater_than_or_equal(mul(mul(x[5],x[3]),sub(x[5],x[7])), sub(mul(x[0],x[0]),mul(x[3],x[5])))",0.27192982456140347,286fc53d5b16a1c3ba4e1fe8731709f6,,,
+4,10,"not_(greater_than_or_equal(x[7], x[5]))",True,"not_(greater_than_or_equal(x[7], x[5]))",0.38596491228070173,68e8b36c2c3a161a73f098a03180acc6,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],24.24)))",True,"not_(greater_than_or_equal(x[0], mul(x[3],40.24)))",0.26754385964912286,0cd7227f20141d7cea8d1f8ed98feba6,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],x[0])))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,"not_(less_than_or_equal(mul(x[0],x[0]),mul(x[3],x[5])))",True,"less_than_or_equal(mul(x[3],x[5]),mul(x[7],x[0]))",0.7324561403508771,6109ccadc6788db443a570bd4fb5faf0,,,
+4,10,"not_(greater_than_or_equal(x[7], x[3]))",True,"not_(less_than_or_equal(x[3],x[7]))",0.26754385964912286,b55da7665013d83f5bfbc88645ceeebf,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[3],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,10,"not_(less_than_or_equal(x[0],mul(x[3],46.35)))",True,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",0.7324561403508771,f8430a5c499f08402507164d1907d38d,,,
+4,10,"not_(greater_than_or_equal(24.24, x[3]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[2],x[0]),x[7]))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,10,"not_(less_than_or_equal(sub(sub(x[5],62.42),add(add(sub(add(add(mul(x[3],40.94),add(add(x[3],mul(54.32,mul(pdiv(mul(x[3],sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],34.83)))),x[0])),x[0]))),x[7])),x[3]),66.13),x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5])))),pdiv(x[7],add(x[0],x[7]))))",True,"not_(less_than_or_equal(x[0],mul(x[3],40.22)))",0.7324561403508771,f8430a5c499f08402507164d1907d38d,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",True,"not_(greater_than_or_equal(x[0], mul(x[3],x[3])))",0.2763157894736842,ee03bdb4e5311555eccf62822f637811,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(mul(x[3],x[5]),pdiv(x[7],add(x[0],x[7]))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],pdiv(x[0],x[2]))))",0.25877192982456143,357d4f5bbbeb8f674679acc9a0a9c2c7,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],sub(add(x[0],x[0]),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7])))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,
+4,10,"not_(greater_than_or_equal(40.94, x[7]))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[7],pdiv(x[0],x[2]))))",False,,,ce6e4a6a934327ebd9484eba84b21b81,0.5570175438596492,False,0.0
+4,10,"not_(greater_than_or_equal(x[7], 26.39))",True,"greater_than_or_equal(pdiv(35.14,x[5]), sub(x[3],sub(x[0],x[5])))",0.7105263157894737,ff0b809f0584777e132c9d84a5a96f45,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[7],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[0],mul(x[3],x[3])))))))",False,,,ee6180931a2b6f49800f3aae15cd76fd,0.26754385964912286,False,0.0
+4,10,"not_(greater_than_or_equal(x[7], x[3]))",True,"not_(less_than_or_equal(x[3],x[7]))",0.26754385964912286,b55da7665013d83f5bfbc88645ceeebf,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),x[7]))))",True,"less_than_or_equal(mul(x[0],x[7]),mul(x[2],mul(mul(x[0],pdiv(sub(x[3],x[0]),add(x[2],x[0]))),x[5])))",0.2850877192982456,b43367868499d3c2b69e57ce344d9401,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),pdiv(pdiv(x[0],x[7]),pdiv(pdiv(x[0],x[2]),add(x[2],x[2])))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],pdiv(sub(x[3],x[7]),sub(mul(x[0],add(sub(sub(add(add(mul(x[3],40.94),add(add(x[3],mul(24.32,mul(pdiv(pdiv(x[3],sub(x[5],x[7])),sub(mul(x[2],pdiv(x[7],sub(mul(x[0],x[0]),mul(x[3],34.80)))),x[0])),x[0]))),x[7])),x[3]),66.13),pdiv(sub(sub(mul(x[0],x[0]),mul(x[3],x[5])),pdiv(x[3],mul(x[0],x[0]))),mul(x[3],x[5]))),pdiv(x[7],add(x[0],x[7])))),pdiv(pdiv(x[2],x[2]),add(x[2],x[2])))))))",True,"not_(greater_than_or_equal(x[2], x[2]))",0.2894736842105263,45c9696c90e4d7579f6696b6f0775568,,,
+4,10,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",True,"not_(greater_than_or_equal(x[0], mul(x[3],sub(sub(x[5],x[7]),sub(mul(x[0],x[0]),mul(x[3],x[5]))))))",0.24561403508771928,61f3e484d184b461216691ce68cd5da6,,,

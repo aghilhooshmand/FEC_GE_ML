@@ -9,13 +9,17 @@ Same structure as FEC_report.py but:
   - Outputs:
       - baseline/generation_stats_aggregated.csv   (evolution: per-generation metrics aggregated across runs)
       - baseline/summary_aggregated.csv            (summary stats aggregated across baseline runs)
-      - FEC/(withFake|noFake)/generation_stats_aggregated_FEC.csv   (if subfolders exist; otherwise FEC/...)
-      - FEC/(withFake|noFake)/summary_aggregated_FEC.csv            (if subfolders exist; otherwise FEC/...)
+  - FEC/(withFake|noFake)/generation_stats_aggregated_FEC.csv   (if subfolders exist; otherwise FEC/...)
+  - FEC/(withFake|noFake)/summary_aggregated_FEC.csv            (if subfolders exist; otherwise FEC/...)
+  - FEC/.../fec_individual_cache_all_runs_merged.csv (all per-run logs concatenated; mode/fraction, phenotype, phenotype_in_cache, metrics; cache_key omitted)
+  - FEC/.../fec_individual_cache_aggregated_by_gen.csv and fec_individual_cache_aggregated_summary.csv
+    (when fec_individual_cache_*_run*.csv files exist; mean/std across runs of per-evaluation metrics)
       - summary_baseline_vs_FEC{_withFake|_noFake}.csv (if subfolders exist; otherwise summary_baseline_vs_FEC.csv)
       - FEC_report_simple{_withFake|_noFake}.html (if subfolders exist; otherwise FEC_report_simple.html)
 """
 
 import argparse
+import re
 from pathlib import Path
 from typing import List
 
@@ -60,6 +64,34 @@ def _parse_threshold_tag(tag: str) -> float | None:
         return float(s)
     except ValueError:
         return None
+
+
+def _parse_fec_individual_cache_filename(path: Path) -> tuple[str | None, float | None, int | None]:
+    """
+    Parse fec_individual_cache_<method>_frac_<pct>_run<n>.csv -> (sampling_method, sample_fraction, run_index).
+    """
+    stem = path.stem
+    prefix = "fec_individual_cache_"
+    if not stem.startswith(prefix):
+        return None, None, None
+    rest = stem[len(prefix) :]
+    if "_run" not in rest:
+        return None, None, None
+    before_run, run_part = rest.rsplit("_run", 1)
+    try:
+        run_idx = int(run_part)
+    except ValueError:
+        run_idx = None
+    if "_frac_" not in before_run:
+        return None, None, run_idx
+    method, frac_str = before_run.rsplit("_frac_", 1)
+    try:
+        pct = int(frac_str)
+        fraction = pct / 100.0
+    except ValueError:
+        fraction = None
+    sampling_method = method if method else None
+    return sampling_method, fraction, run_idx
 
 
 def _parse_fec_filename(path: Path) -> tuple[str | None, float | None, float | None]:
@@ -114,6 +146,7 @@ def _load_baseline_csvs(baseline_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]
 def _load_fec_csvs(fec_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load all FEC per-run CSVs. Filename template: generation_stats_<method>_frac_<pct>_run<n>.
+    ``mode`` is set from the filename (sampling method only), not the ``fec_simple_*`` value stored in the CSV.
     """
     gen_files = sorted(fec_dir.glob("generation_stats_*_run*.csv"))
     summary_files = sorted(fec_dir.glob("summary_*_run*.csv"))
@@ -127,6 +160,8 @@ def _load_fec_csvs(fec_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
         method, fraction, th = _parse_fec_filename(p)
         if fraction is not None:
             df["sample_fraction"] = fraction
+        if method is not None:
+            df["mode"] = method
         gen_frames.append(df)
     summary_frames = []
     for p in summary_files:
@@ -134,6 +169,8 @@ def _load_fec_csvs(fec_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
         method, fraction, th = _parse_fec_filename(p)
         if fraction is not None:
             df["sample_fraction"] = fraction
+        if method is not None:
+            df["mode"] = method
         summary_frames.append(df)
     gen_all = pd.concat(gen_frames, ignore_index=True)
     summary_all = pd.concat(summary_frames, ignore_index=True)
@@ -205,6 +242,138 @@ def _aggregate_fec_summary_stats(summary_all: pd.DataFrame) -> pd.DataFrame:
             np.nan,
         )
     return agg
+
+
+# Numeric columns for aggregation; phenotype strings are loaded for merged export only (cache_key omitted — rarely needed, often huge).
+_FEC_INDIVIDUAL_CACHE_AGG_COLS = frozenset(
+    {
+        "run",
+        "gen",
+        "hit",
+        "fitness_cached",
+        "fitness_full_train",
+        "fake_hit",
+        "fitness_diff",
+    }
+)
+_FEC_INDIVIDUAL_CACHE_LOAD_COLS = _FEC_INDIVIDUAL_CACHE_AGG_COLS | frozenset(
+    {"phenotype", "phenotype_in_cache"}
+)
+# Per-run logs only: ..._<method>_frac_<pct>_run<n>.csv — excludes merged/aggregated outputs
+# (a broad glob like *_run* also matches fec_individual_cache_all_runs_merged.csv via "_runs").
+_FEC_INDIVIDUAL_CACHE_PER_RUN_NAME = re.compile(
+    r"^fec_individual_cache_.+_run\d+\.csv$",
+    re.IGNORECASE,
+)
+
+
+def _individual_cache_export_column_order(df: pd.DataFrame) -> pd.DataFrame:
+    """Stable column order for merged CSV: filename fields, ids, phenotypes, then metrics."""
+    preferred = (
+        "mode",
+        "sample_fraction",
+        "run",
+        "gen",
+        "phenotype",
+        "phenotype_in_cache",
+        "hit",
+        "fitness_cached",
+        "fitness_full_train",
+        "fake_hit",
+        "fitness_diff",
+    )
+    head = [c for c in preferred if c in df.columns]
+    tail = [c for c in df.columns if c not in head]
+    return df[head + tail]
+
+
+def _load_fec_individual_cache_csvs(fec_dir: Path) -> pd.DataFrame | None:
+    """Load per-run fec_individual_cache_*_run<n>.csv; add mode and sample_fraction from filename."""
+    files = sorted(
+        p
+        for p in fec_dir.glob("fec_individual_cache_*.csv")
+        if _FEC_INDIVIDUAL_CACHE_PER_RUN_NAME.match(p.name)
+    )
+    if not files:
+        return None
+    frames: list[pd.DataFrame] = []
+    for p in files:
+        try:
+            header_cols = pd.read_csv(p, nrows=0).columns.tolist()
+        except Exception:
+            continue
+        usecols = [c for c in header_cols if c in _FEC_INDIVIDUAL_CACHE_LOAD_COLS]
+        if not usecols:
+            continue
+        try:
+            # engine="python" avoids occasional segfaults in the C parser on very long fields.
+            df = pd.read_csv(p, usecols=usecols, engine="python")
+        except Exception:
+            df = pd.read_csv(p, usecols=usecols)
+        mode, frac, _ = _parse_fec_individual_cache_filename(p)
+        # Always write filename-derived fields (merged CSV and aggregates rely on these columns).
+        df["mode"] = mode if mode is not None else pd.NA
+        df["sample_fraction"] = float(frac) if frac is not None else np.nan
+        frames.append(df)
+    if not frames:
+        return None
+    out = pd.concat(frames, ignore_index=True)
+    return _individual_cache_export_column_order(out)
+
+
+def _prepare_individual_cache_for_agg(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce hit/fake_hit to float for mean=rate; keep numeric columns."""
+    out = df.copy()
+    for c in ("hit", "fake_hit"):
+        if c not in out.columns:
+            continue
+
+        def _coerce(x: object) -> float:
+            if pd.isna(x):
+                return np.nan
+            if isinstance(x, str) and x.strip() == "":
+                return np.nan
+            if isinstance(x, (bool, np.bool_)):
+                return float(x)
+            if x in ("True", "true", True):
+                return 1.0
+            if x in ("False", "false", False):
+                return 0.0
+            try:
+                return float(x)
+            except (TypeError, ValueError):
+                return np.nan
+
+        out[c] = out[c].map(_coerce)
+    if "gen" in out.columns:
+        out["gen"] = pd.to_numeric(out["gen"], errors="coerce")
+    return out
+
+
+def _aggregate_fec_individual_cache(
+    ic_all: pd.DataFrame,
+    grouping_keys: List[str],
+) -> pd.DataFrame:
+    """Mean/std across runs of numeric per-individual metrics (same pattern as generation/summary aggregation)."""
+    df = _prepare_individual_cache_for_agg(ic_all)
+    if not all(k in df.columns for k in grouping_keys):
+        return pd.DataFrame()
+    skip_metrics = set(grouping_keys) | {
+        "run",
+        "phenotype",
+        "phenotype_in_cache",
+        "cache_key",
+    }
+    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+    metrics = [c for c in numeric_cols if c not in skip_metrics]
+    if not metrics:
+        return pd.DataFrame()
+    grouped = df.groupby(grouping_keys, as_index=False, dropna=False)[metrics]
+    agg_mean = grouped.mean(numeric_only=True)
+    agg_std = grouped.std(ddof=0, numeric_only=True)
+    agg_mean = agg_mean.rename(columns={c: f"{c}_mean" for c in metrics})
+    agg_std = agg_std.rename(columns={c: f"{c}_std" for c in metrics})
+    return pd.merge(agg_mean, agg_std, on=grouping_keys, how="left")
 
 
 def _get_thresholds_and_fractions(fec_gen_agg: pd.DataFrame) -> tuple[List[float], dict]:
@@ -1141,8 +1310,10 @@ def main() -> None:
         label_suffix = "" if use_legacy_output_names else (f"_{sub_name}" if sub_name else "")
         print(f"\n=== Report for FEC={sub_name or 'legacy'} ===")
 
-        print("Loading FEC CSVs ...")
+        print("Loading FEC generation/summary CSVs ...")
         gen_all_fec, sum_all_fec = _load_fec_csvs(one_fec_dir)
+        print("Loading FEC individual cache CSVs ...")
+        ic_all = _load_fec_individual_cache_csvs(one_fec_dir)
 
         print("Aggregating FEC ...")
         gen_agg_fec = _aggregate_fec_generation_stats(gen_all_fec)
@@ -1164,6 +1335,22 @@ def main() -> None:
         sum_agg_fec_path = one_fec_dir / "summary_aggregated_FEC.csv"
         sum_agg_fec.to_csv(sum_agg_fec_path, index=False)
         print(f"Saved {sum_agg_fec_path}")
+
+        if ic_all is not None and not ic_all.empty:
+            ic_merged_path = one_fec_dir / "fec_individual_cache_all_runs_merged.csv"
+            ic_all.to_csv(ic_merged_path, index=False)
+            print(f"Saved {ic_merged_path}")
+            print("Aggregating FEC individual cache logs ...")
+            ic_by_gen = _aggregate_fec_individual_cache(ic_all, ["mode", "sample_fraction", "gen"])
+            ic_summary = _aggregate_fec_individual_cache(ic_all, ["mode", "sample_fraction"])
+            if not ic_by_gen.empty:
+                ic_gen_path = one_fec_dir / "fec_individual_cache_aggregated_by_gen.csv"
+                ic_by_gen.to_csv(ic_gen_path, index=False)
+                print(f"Saved {ic_gen_path}")
+            if not ic_summary.empty:
+                ic_sum_path = one_fec_dir / "fec_individual_cache_aggregated_summary.csv"
+                ic_summary.to_csv(ic_sum_path, index=False)
+                print(f"Saved {ic_sum_path}")
 
         # Reload aggregated evolution CSVs for charting (ensures charts use exact same data as CSV; fixes dtype/JSON issues)
         gen_agg_fec = pd.read_csv(gen_agg_fec_path)

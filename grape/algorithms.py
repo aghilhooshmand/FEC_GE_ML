@@ -36,6 +36,15 @@ except ImportError:
     def set_cache_context(run_id, generation):
         pass
 
+
+def _fec_set_eval_context(run_id, gen: int) -> None:
+    """So util_simple.create_fec_fitness can log run/gen in optional per-evaluation CSV."""
+    try:
+        from util_simple import set_fec_eval_context
+        set_fec_eval_context(run_id, gen)
+    except ImportError:
+        pass
+
 def varAnd(population, toolbox, cxpb, mutpb,
            bnf_grammar, codon_size, max_tree_depth, codon_consumption,
            genome_representation, max_genome_length):
@@ -128,6 +137,7 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
             logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
 
     start_gen = time.time()
+    _fec_set_eval_context(run_id, 0)
     # Evaluate the individuals with an invalid fitness
     invalid_inds = [ind for ind in population if not ind.fitness.valid]
     if hasattr(toolbox, "map"):
@@ -283,7 +293,8 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
     # Begin the generational process
     for gen in range(logbook.select("gen")[-1]+1, ngen + 1):
         start_gen = time.time()
-        
+        _fec_set_eval_context(run_id, gen)
+
         # Update cache context for FEC tracking
         if run_id:
             set_cache_context(run_id, gen)
@@ -494,7 +505,8 @@ def ge_eaSimpleWithElitism_fec(population, toolbox, cxpb, mutpb, ngen, elite_siz
     if fec_cache is not None:
         fec_cache.start_generation()
     
-    start_gen = time.time()        
+    start_gen = time.time()
+    _fec_set_eval_context(run_id, 0)
     # Evaluate the individuals with an invalid fitness
     for ind in population:
         if not ind.fitness.valid:
@@ -621,7 +633,8 @@ def ge_eaSimpleWithElitism_fec(population, toolbox, cxpb, mutpb, ngen, elite_siz
             fec_cache.start_generation()
         
         start_gen = time.time()
-        
+        _fec_set_eval_context(run_id, gen)
+
         if run_id:
             set_cache_context(run_id, gen)
     
@@ -953,7 +966,8 @@ def ge_eaSimpleWithElitism_dynamic(population, toolbox, ngen,
     # Generational process with per-generation configuration
     for gen in range(logbook.select("gen")[-1]+1, ngen + 1):
         start_gen = time.time()
-        
+        _fec_set_eval_context(run_id, gen)
+
         # Update cache context for FEC tracking
         if run_id:
             set_cache_context(run_id, gen)

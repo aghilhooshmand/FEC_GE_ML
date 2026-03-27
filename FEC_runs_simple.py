@@ -92,6 +92,10 @@ def _run_one_fec_simple(
     file_tag = f"{sampling_method}_frac_{frac_pct}"
     run_suffix = f"FEC_simple_{file_tag}_run{run_index}"
 
+    if bool(cfg.get("output.save_individuals_csv", False)):
+        cfg["fec._individual_log_run"] = run_index
+        cfg["fec._individual_log_file_tag"] = f"{file_tag}_run{run_index}"
+
     t0 = time.perf_counter()
     result: SimpleExperimentResult = run_fec_experiment_simple(
         cfg=cfg,

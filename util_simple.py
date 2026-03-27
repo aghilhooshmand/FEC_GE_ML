@@ -15,6 +15,21 @@ import grape.grape as grape
 import grape.algorithms
 from sampling_methods import get_sampling_function
 
+# Current run / generation for optional per-evaluation CSV logging (set by grape.algorithms.ge_eaSimpleWithElitism).
+_FEC_LOG_RUN: Any = None
+_FEC_LOG_GEN: int = 0
+
+
+def set_fec_eval_context(run_id: Any, gen: int) -> None:
+    """Called from ge_eaSimpleWithElitism so create_fec_fitness can log run and gen."""
+    global _FEC_LOG_RUN, _FEC_LOG_GEN
+    _FEC_LOG_RUN = run_id
+    _FEC_LOG_GEN = int(gen)
+
+
+def _fec_log_run_gen() -> tuple[Any, int]:
+    return _FEC_LOG_RUN, _FEC_LOG_GEN
+
 
 @dataclass
 class SimpleExperimentResult:
@@ -163,20 +178,24 @@ class SimpleFECCache:
     def __init__(self) -> None:
         # Simple in-memory hash table (Python dict)
         self.cache: Dict[object, float] = {}
+        # Phenotype string stored on first insert for a key (for analysis CSV).
+        self.cache_phenotype: Dict[object, str] = {}
         self.hits = 0
         self.misses = 0
         self.fake_hits = 0
         self.fake_eval_time_sec = 0.0
 
-    def lookup(self, key: object) -> Tuple[bool, float]:
+    def lookup(self, key: object) -> Tuple[bool, float, str]:
         if key in self.cache:
             self.hits += 1
-            return True, self.cache[key]
+            return True, self.cache[key], self.cache_phenotype.get(key, "")
         self.misses += 1
-        return False, 0.0
+        return False, 0.0, ""
 
-    def store(self, key: object, fitness: float) -> None:
+    def store(self, key: object, fitness: float, phenotype: str = "") -> None:
         self.cache[key] = fitness
+        if key not in self.cache_phenotype and phenotype:
+            self.cache_phenotype[key] = phenotype
 
 
 def _hash_key_bytes(data: bytes) -> str:
@@ -216,8 +235,40 @@ def create_fec_fitness(
     evaluate_fake_hits: bool,
     fake_hit_threshold: float,
     cache_key: str = "behavior_hash",
+    individual_log_rows: Optional[List[Dict[str, Any]]] = None,
 ) -> Any:
     # fake_hit_threshold kept for API/config parity; fake-hit detection uses exact matching only.
+
+    def _phenotype_str(ind: Any) -> str:
+        return str(getattr(ind, "phenotype", "") or "")
+
+    def _append_log(
+        *,
+        individual: Any,
+        hit: bool,
+        cache_key_val: object,
+        phenotype_in_cache: str,
+        fitness_cached: float,
+        fitness_full: float,
+        fake_hit_val: Any,
+        fitness_diff: Any,
+    ) -> None:
+        if individual_log_rows is None:
+            return
+        run, gen = _fec_log_run_gen()
+        row: Dict[str, Any] = {
+            "run": run if run is not None else "",
+            "gen": gen,
+            "phenotype": _phenotype_str(individual),
+            "hit": hit,
+            "phenotype_in_cache": phenotype_in_cache if hit else "",
+            "fitness_cached": fitness_cached,
+            "cache_key": str(cache_key_val),
+            "fitness_full_train": fitness_full,
+            "fake_hit": fake_hit_val,
+            "fitness_diff": fitness_diff,
+        }
+        individual_log_rows.append(row)
 
     def fitness_eval(individual: Any, points: Sequence[np.ndarray], dataset_type: str = "train") -> Tuple[float]:
         x = np.asarray(points[0], dtype=np.float64)
@@ -248,10 +299,22 @@ def create_fec_fitness(
         use_cache = is_training and cache is not None
         hit = False
         cached = 0.0
+        phen_cached = ""
 
         if use_cache:
-            hit, cached = cache.lookup(key)
+            hit, cached, phen_cached = cache.lookup(key)
             if hit and not evaluate_fake_hits:
+                if individual_log_rows is not None:
+                    _append_log(
+                        individual=individual,
+                        hit=True,
+                        cache_key_val=key,
+                        phenotype_in_cache=phen_cached,
+                        fitness_cached=float(cached),
+                        fitness_full=float("nan"),
+                        fake_hit_val="",
+                        fitness_diff=float("nan"),
+                    )
                 return (cached,)
 
         env = {"np": np, "x": x}
@@ -279,12 +342,37 @@ def create_fec_fitness(
             dt = float(_t.perf_counter() - t0_fake)
             cache.fake_eval_time_sec += dt
             # Exact match: cached == full fitness (float-safe via np.isclose with atol=rtol=0).
-            if not np.isclose(float(cached), float(fitness_full), atol=0.0, rtol=0.0, equal_nan=True):
+            is_fake = not np.isclose(float(cached), float(fitness_full), atol=0.0, rtol=0.0, equal_nan=True)
+            if is_fake:
                 cache.fake_hits += 1
+            # Signed difference: full_train_mae - cached (positive => full eval higher error than cache)
+            diff_ft = float(fitness_full) - float(cached)
+            if individual_log_rows is not None:
+                _append_log(
+                    individual=individual,
+                    hit=True,
+                    cache_key_val=key,
+                    phenotype_in_cache=phen_cached,
+                    fitness_cached=float(cached),
+                    fitness_full=float(fitness_full),
+                    fake_hit_val=is_fake,
+                    fitness_diff=diff_ft,
+                )
             return (cached,)
 
         if use_cache and not hit:
-            cache.store(key, fitness_full)
+            cache.store(key, fitness_full, _phenotype_str(individual))
+            if individual_log_rows is not None:
+                _append_log(
+                    individual=individual,
+                    hit=False,
+                    cache_key_val=key,
+                    phenotype_in_cache="",
+                    fitness_cached=float("nan"),
+                    fitness_full=float(fitness_full),
+                    fake_hit_val=False,
+                    fitness_diff=0.0,
+                )
 
         return (fitness_full,)
 
@@ -401,6 +489,8 @@ def run_fec_experiment_simple(
     )
 
     cache = SimpleFECCache()
+    save_ind_csv = bool(cfg.get("output.save_individuals_csv", False))
+    individual_log_rows: Optional[List[Dict[str, Any]]] = [] if save_ind_csv else None
     eval_fn = create_fec_fitness(
         centroid_X=centroid_X,
         centroid_y=centroid_y,
@@ -409,6 +499,7 @@ def run_fec_experiment_simple(
         evaluate_fake_hits=bool(cfg.get("fec.evaluate_fake_hits", False)),
         fake_hit_threshold=float(cfg.get("fec.fake_hit_threshold", 1e-5)),
         cache_key=str(cfg.get("fec.cache_key", "behavior_hash")),
+        individual_log_rows=individual_log_rows,
     )
     toolbox.register("evaluate", eval_fn)
 
@@ -424,6 +515,8 @@ def run_fec_experiment_simple(
     stats.register("max", np.nanmax)
 
     report_items = cfg.get("report_items", [])
+
+    run_id_for_log = cfg.get("fec._individual_log_run")
 
     population, logbook = grape.algorithms.ge_eaSimpleWithElitism(
         population,
@@ -444,6 +537,7 @@ def run_fec_experiment_simple(
         stats=stats,
         halloffame=hof,
         verbose=False,
+        run_id=run_id_for_log,
     )
 
     if report_items and len(logbook) > 0:
@@ -463,6 +557,26 @@ def run_fec_experiment_simple(
             else 0.0
         ),
     }
+
+    if individual_log_rows is not None and len(individual_log_rows) > 0:
+        tag = str(cfg.get("fec._individual_log_file_tag", "fec_run"))
+        out_csv = results_root / f"fec_individual_cache_{tag}.csv"
+        _cols = [
+            "run",
+            "gen",
+            "phenotype",
+            "hit",
+            "phenotype_in_cache",
+            "fitness_cached",
+            "cache_key",
+            "fitness_full_train",
+            "fake_hit",
+            "fitness_diff",
+        ]
+        df_log = pd.DataFrame(individual_log_rows)
+        df_log = df_log[[c for c in _cols if c in df_log.columns]]
+        df_log.to_csv(out_csv, index=False)
+        print(f"Saved FEC individual cache log: {out_csv}")
 
     return SimpleExperimentResult(
         config=cfg,
