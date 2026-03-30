@@ -103,8 +103,43 @@ def load_dataset(cfg: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
                 random_state=int(cfg.get("evolution.random_seed", 42)),
             )
 
+    # Separate label and features.
     y = df[label_col].astype(int).to_numpy()
-    X = df.drop(columns=[label_col]).to_numpy(dtype=float)
+    feature_df = df.drop(columns=[label_col]).copy()
+
+    # Basic preprocessing for non-numeric columns:
+    # - If a column is numeric (int/float/bool), keep as-is.
+    # - If it is object/string and has a small number of distinct values, encode to integer codes.
+    # - Otherwise (e.g. free-form text, IDs, file names), drop the column.
+    processed_features = {}
+    n_rows = len(feature_df)
+    for col in feature_df.columns:
+        s = feature_df[col]
+        if pd.api.types.is_numeric_dtype(s) or pd.api.types.is_bool_dtype(s):
+            processed_features[col] = pd.to_numeric(s, errors="coerce")
+            continue
+
+        # Object / categorical-like columns.
+        if not pd.api.types.is_object_dtype(s):
+            # Fallback: try numeric conversion; drop if it fails badly.
+            numeric = pd.to_numeric(s, errors="coerce")
+            if numeric.notna().any():
+                processed_features[col] = numeric
+            continue
+
+        uniques = s.dropna().unique()
+        # Heuristic: treat as categorical if number of categories is relatively small.
+        max_categories = min(20, max(1, n_rows // 10))
+        if 0 < len(uniques) <= max_categories:
+            # Map categories to integer codes 0..K-1.
+            mapping = {val: idx for idx, val in enumerate(sorted(uniques, key=lambda x: str(x)))}
+            processed_features[col] = s.map(mapping).astype(float)
+        # Else: too many distinct strings (likely comments/IDs); drop column.
+
+    if not processed_features:
+        raise ValueError(f"No usable feature columns after preprocessing for dataset '{cfg['dataset.file']}'")
+
+    X = pd.DataFrame(processed_features).to_numpy(dtype=float)
     return X, y
 
 
