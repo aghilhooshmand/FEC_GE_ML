@@ -1,0 +1,2 @@
+mode,sample_fraction,final_test_mae_mean,final_test_accuracy_mean,total_time_sec_mean,total_wall_time_sec_mean,final_test_mae_std,final_test_accuracy_std,total_time_sec_std,total_wall_time_sec_std
+baseline_simple,1.0,0.012333333333333333,0.9876666666666666,9.6849200963974,9.963365721950929,0.01256538454998051,0.01256538454998052,0.9641370637151819,0.9774937027608855
